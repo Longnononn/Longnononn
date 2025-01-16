@@ -48,7 +48,7 @@ class Zefoy:
             for x in re.findall(r'<input type="hidden" name="(.*)" value="(.*)">', request.text): self.captcha_[x[0]] = x[1]
 
             self.captcha_1 = request.text.split('type="text" name="')[1].split('" oninput="this.value=this.value.toLowerCase()"')[0]
-            captcha_url = request.text.split('<img src="')[1].split('" onerror="imgOnError()" class="')[0]
+            captcha_url = request.text.split('<img src="')[1].split('" onerror="errimg()" class="img-thumbnail card-img-top border")[0]
             request = self.session.get(f"{self.base_url}{captcha_url}",headers=self.headers)
             open('captcha.png', 'wb').write(request.content)
             print('Đang giải capcha..')
