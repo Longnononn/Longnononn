@@ -15,6 +15,7 @@ ScreenGui.Name = "longdzzGUI"
 ScreenGui.Parent = game.CoreGui
 
 -- Khung chính
+local Frame = Instance.new("Frame")
 Frame.Name = "MainFrame"
 Frame.Parent = ScreenGui
 Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
@@ -75,7 +76,8 @@ end)
 AutoHopMoon.MouseButton1Click:Connect(function()
     local HttpService = game:GetService("HttpService")
     local success, response = pcall(function()
-        return HttpService:GetAsync("http://localhost:8080/jobid")
+        -- Thay localhost bằng URL của web server Replit
+        return HttpService:GetAsync("http://your-replit-url.repl.co/jobid")
     end)
 
     if success and response and string.match(response, "[%w-]+") then
