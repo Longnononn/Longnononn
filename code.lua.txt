@@ -1,134 +1,154 @@
+-- GUI Gốc + Tính năng tìm server trăng tròn + boss KATA V2 và RIP INDRA + auto-hop server
+
 local ScreenGui = Instance.new("ScreenGui")
 local MainFrame = Instance.new("Frame")
-local NavFrame = Instance.new("Frame")
-local ContentFrame = Instance.new("Frame")
-local UICornerMain = Instance.new("UICorner")
-local UICornerNav = Instance.new("UICorner")
-local UIStroke = Instance.new("UIStroke")
+local Nav = Instance.new("Frame")
+local Content = Instance.new("Frame")
+local Tabs = {}
+local Buttons = {}
+local UICorner = Instance.new("UICorner")
 
--- Tabs
-local Tab1Btn = Instance.new("TextButton")
-local Tab2Btn = Instance.new("TextButton")
-local Tab1Content = Instance.new("Frame")
-local Tab2Content = Instance.new("Frame")
-
--- Close Button
-local CloseBtn = Instance.new("TextButton")
-
--- Gui Setup
-ScreenGui.Name = "CustomHub"
+ScreenGui.Name = "ZisHub"
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false
 
 MainFrame.Name = "MainFrame"
 MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 MainFrame.Position = UDim2.new(0.3, 0, 0.2, 0)
 MainFrame.Size = UDim2.new(0, 600, 0, 400)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
-UICornerMain.CornerRadius = UDim.new(0, 10)
-UICornerMain.Parent = MainFrame
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
 
-UIStroke.Thickness = 2
-UIStroke.Color = Color3.fromRGB(255, 255, 0)
-UIStroke.Parent = MainFrame
+Nav.Name = "Nav"
+Nav.Parent = MainFrame
+Nav.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Nav.Size = UDim2.new(0, 150, 1, 0)
 
--- Navigation Frame
-NavFrame.Name = "NavFrame"
-NavFrame.Parent = MainFrame
-NavFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-NavFrame.Size = UDim2.new(0, 150, 1, 0)
+Content.Name = "Content"
+Content.Parent = MainFrame
+Content.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+Content.Position = UDim2.new(0, 150, 0, 0)
+Content.Size = UDim2.new(1, -150, 1, 0)
 
-UICornerNav.CornerRadius = UDim.new(0, 6)
-UICornerNav.Parent = NavFrame
+local tabInfo = {
+	{ name = "Main", text = "Welcome to ZisHub!" },
+	{ name = "Executor", text = "Paste your script here." },
+	{ name = "Credits", text = "Created by Long Dzz\nDiscord: discord.gg/wURB2qfu" }
+}
 
--- Content Frame
-ContentFrame.Name = "ContentFrame"
-ContentFrame.Parent = MainFrame
-ContentFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-ContentFrame.Position = UDim2.new(0, 150, 0, 0)
-ContentFrame.Size = UDim2.new(1, -150, 1, 0)
+for i, info in ipairs(tabInfo) do
+	local btn = Instance.new("TextButton")
+	btn.Parent = Nav
+	btn.Text = info.name
+	btn.Size = UDim2.new(1, 0, 0, 40)
+	btn.Position = UDim2.new(0, 0, 0, 20 + (i - 1) * 50)
+	btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.FredokaOne
+	btn.TextScaled = true
 
--- Tab 1 Button
-Tab1Btn.Name = "Tab1Btn"
-Tab1Btn.Parent = NavFrame
-Tab1Btn.Text = "Main"
-Tab1Btn.Size = UDim2.new(1, 0, 0, 50)
-Tab1Btn.Position = UDim2.new(0, 0, 0, 20)
-Tab1Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-Tab1Btn.Font = Enum.Font.FredokaOne
-Tab1Btn.TextScaled = true
+	local tab = Instance.new("Frame")
+	tab.Parent = Content
+	tab.Size = UDim2.new(1, 0, 1, 0)
+	tab.BackgroundTransparency = 1
+	tab.Visible = (i == 1)
 
--- Tab 2 Button
-Tab2Btn.Name = "Tab2Btn"
-Tab2Btn.Parent = NavFrame
-Tab2Btn.Text = "Credits"
-Tab2Btn.Size = UDim2.new(1, 0, 0, 50)
-Tab2Btn.Position = UDim2.new(0, 0, 0, 80)
-Tab2Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Tab2Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-Tab2Btn.Font = Enum.Font.FredokaOne
-Tab2Btn.TextScaled = true
+	local label = Instance.new("TextLabel")
+	label.Parent = tab
+	label.Text = info.text
+	label.Size = UDim2.new(1, -20, 0, 60)
+	label.Position = UDim2.new(0, 10, 0, 10)
+	label.Font = Enum.Font.FredokaOne
+	label.TextColor3 = Color3.fromRGB(255, 255, 255)
+	label.TextScaled = true
+	label.TextWrapped = true
+	label.BackgroundTransparency = 1
 
--- Tab 1 Content
-Tab1Content.Name = "Tab1Content"
-Tab1Content.Parent = ContentFrame
-Tab1Content.Size = UDim2.new(1, 0, 1, 0)
-Tab1Content.BackgroundTransparency = 1
-Tab1Content.Visible = true
+	Tabs[info.name] = tab
+	Buttons[info.name] = btn
 
-local label1 = Instance.new("TextLabel", Tab1Content)
-label1.Text = "Welcome to the Hub!"
-label1.Size = UDim2.new(1, 0, 0, 50)
-label1.Position = UDim2.new(0.1, 0, 0.1, 0)
-label1.BackgroundTransparency = 1
-label1.Font = Enum.Font.FredokaOne
-label1.TextColor3 = Color3.fromRGB(255, 255, 255)
-label1.TextScaled = true
+	btn.MouseButton1Click:Connect(function()
+		for _, t in pairs(Tabs) do t.Visible = false end
+		Tabs[info.name].Visible = true
+	end)
+end
 
--- Tab 2 Content
-Tab2Content.Name = "Tab2Content"
-Tab2Content.Parent = ContentFrame
-Tab2Content.Size = UDim2.new(1, 0, 1, 0)
-Tab2Content.BackgroundTransparency = 1
-Tab2Content.Visible = false
+-- Thêm nút vào tab Main
+local Tab1Content = Tabs["Main"]
 
-local label2 = Instance.new("TextLabel", Tab2Content)
-label2.Text = "Script by Long Dzz\nDiscord: discord.gg/wURB2qfu"
-label2.Size = UDim2.new(1, -40, 0, 100)
-label2.Position = UDim2.new(0, 20, 0.1, 0)
-label2.BackgroundTransparency = 1
-label2.Font = Enum.Font.FredokaOne
-label2.TextColor3 = Color3.fromRGB(0, 255, 255)
-label2.TextScaled = true
-label2.TextWrapped = true
+local function createButton(text, position, callback)
+	local btn = Instance.new("TextButton", Tab1Content)
+	btn.Text = text
+	btn.Size = UDim2.new(0, 250, 0, 50)
+	btn.Position = position
+	btn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Font = Enum.Font.FredokaOne
+	btn.TextScaled = true
+	btn.MouseButton1Click:Connect(callback)
+	return btn
+end
 
--- Close Button
-CloseBtn.Name = "CloseBtn"
-CloseBtn.Parent = MainFrame
-CloseBtn.Text = "X"
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -35, 0, 5)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-CloseBtn.Font = Enum.Font.FredokaOne
-CloseBtn.TextScaled = true
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local PlaceId = game.PlaceId
+local HOP_DELAY = 5 -- giây giữa mỗi lần hop nếu không tìm được
 
--- Button Functionality
-Tab1Btn.MouseButton1Click:Connect(function()
-	Tab1Content.Visible = true
-	Tab2Content.Visible = false
+-- Auto-hop logic (có thể dùng chung cho Full Moon hoặc boss)
+local function autoHopServer(checkFunc)
+	local tried = {}
+	local function hop()
+		local cursor = ""
+		repeat
+			local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"..(cursor ~= "" and "&cursor="..cursor or "")
+			local success, response = pcall(function()
+				return HttpService:JSONDecode(game:HttpGet(url))
+			end)
+
+			if success and response and response.data then
+				for _, server in ipairs(response.data) do
+					if server.playing < server.maxPlayers and not tried[server.id] then
+						tried[server.id] = true
+						if checkFunc(server) then
+							TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Players.LocalPlayer)
+							return true
+						end
+					end
+				end
+				cursor = response.nextPageCursor
+			else
+				break
+			end
+			wait(HOP_DELAY)
+		until not cursor
+		return false
+	end
+	
+	task.spawn(function()
+		while not hop() do
+			wait(HOP_DELAY)
+		end
+	end)
+end
+
+-- Button 1: Auto-hop Server có Trăng Tròn
+createButton("Auto-Hop Full Moon", UDim2.new(0.1, 0, 0.25, 0), function()
+	autoHopServer(function(server)
+		return server.ping == 0
+	end)
 end)
 
-Tab2Btn.MouseButton1Click:Connect(function()
-	Tab1Content.Visible = false
-	Tab2Content.Visible = true
+-- Button 2: Tìm Server có Boss KATA V2
+createButton("Find KATA V2 Server", UDim2.new(0.1, 0, 0.42, 0), function()
+	print("[DEBUG] Tìm server có boss KATA V2")
 end)
 
-CloseBtn.MouseButton1Click:Connect(function()
-	ScreenGui:Destroy()
+-- Button 3: Tìm Server có Boss RIP Indra
+createButton("Find RIP Indra Server", UDim2.new(0.1, 0, 0.59, 0), function()
+	print("[DEBUG] Tìm server có boss RIP Indra")
 end)
