@@ -8,7 +8,7 @@ local Tabs = {}
 local Buttons = {}
 local UICorner = Instance.new("UICorner")
 
-ScreenGui.Name = "ZisHub"
+ScreenGui.Name = "LongDzz"
 ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
