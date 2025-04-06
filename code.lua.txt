@@ -1,0 +1,48 @@
+local TEDDYFREEMIUM = Instance.new("ScreenGui")
+local Main = Instance.new("Frame")
+local UICorner = Instance.new("UICorner")
+local UIStroke = Instance.new("UIStroke")
+local Name = Instance.new("TextLabel")
+local Discord = Instance.new("TextLabel")
+
+TEDDYFREEMIUM.Name = "TEDDY-FREEMIUM"
+TEDDYFREEMIUM.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+TEDDYFREEMIUM.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+Main.Name = "Main"
+Main.Parent = TEDDYFREEMIUM
+Main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Main.Position = UDim2.new(0.300, 0, 0.200, 0)
+Main.Size = UDim2.new(0, 500, 0, 400)
+
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = Main
+
+UIStroke.Thickness = 3
+UIStroke.Parent = Main
+
+Name.Name = "Name"
+Name.Parent = Main
+Name.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+Name.BackgroundTransparency = 1.000
+Name.Position = UDim2.new(0.1, 0, 0.05, 0)
+Name.Size = UDim2.new(0, 400, 0, 50)
+Name.Font = Enum.Font.FredokaOne
+Name.Text = "long dzz hub"
+Name.TextColor3 = Color3.fromRGB(255, 255, 0)
+Name.TextScaled = true
+Name.TextSize = 56.000
+Name.TextWrapped = true
+
+Discord.Name = "Discord"
+Discord.Parent = Main
+Discord.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+Discord.BackgroundTransparency = 1.000
+Discord.Position = UDim2.new(0.05, 0, 0.85, 0)
+Discord.Size = UDim2.new(0, 450, 0, 30)
+Discord.Font = Enum.Font.FredokaOne
+Discord.Text = "https://discord.gg/wURB2qfu"
+Discord.TextColor3 = Color3.fromRGB(0, 255, 255)
+Discord.TextScaled = true
+Discord.TextSize = 20.000
+Discord.TextWrapped = true
