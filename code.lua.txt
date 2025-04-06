@@ -1,48 +1,134 @@
-local TEDDYFREEMIUM = Instance.new("ScreenGui")
-local Main = Instance.new("Frame")
-local UICorner = Instance.new("UICorner")
+local ScreenGui = Instance.new("ScreenGui")
+local MainFrame = Instance.new("Frame")
+local NavFrame = Instance.new("Frame")
+local ContentFrame = Instance.new("Frame")
+local UICornerMain = Instance.new("UICorner")
+local UICornerNav = Instance.new("UICorner")
 local UIStroke = Instance.new("UIStroke")
-local Name = Instance.new("TextLabel")
-local Discord = Instance.new("TextLabel")
 
-TEDDYFREEMIUM.Name = "TEDDY-FREEMIUM"
-TEDDYFREEMIUM.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-TEDDYFREEMIUM.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- Tabs
+local Tab1Btn = Instance.new("TextButton")
+local Tab2Btn = Instance.new("TextButton")
+local Tab1Content = Instance.new("Frame")
+local Tab2Content = Instance.new("Frame")
 
-Main.Name = "Main"
-Main.Parent = TEDDYFREEMIUM
-Main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-Main.Position = UDim2.new(0.300, 0, 0.200, 0)
-Main.Size = UDim2.new(0, 500, 0, 400)
+-- Close Button
+local CloseBtn = Instance.new("TextButton")
 
-UICorner.CornerRadius = UDim.new(0, 12)
-UICorner.Parent = Main
+-- Gui Setup
+ScreenGui.Name = "CustomHub"
+ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.ResetOnSpawn = false
 
-UIStroke.Thickness = 3
-UIStroke.Parent = Main
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Position = UDim2.new(0.3, 0, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 600, 0, 400)
+MainFrame.Active = true
+MainFrame.Draggable = true
 
-Name.Name = "Name"
-Name.Parent = Main
-Name.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-Name.BackgroundTransparency = 1.000
-Name.Position = UDim2.new(0.1, 0, 0.05, 0)
-Name.Size = UDim2.new(0, 400, 0, 50)
-Name.Font = Enum.Font.FredokaOne
-Name.Text = "long dzz hub"
-Name.TextColor3 = Color3.fromRGB(255, 255, 0)
-Name.TextScaled = true
-Name.TextSize = 56.000
-Name.TextWrapped = true
+UICornerMain.CornerRadius = UDim.new(0, 10)
+UICornerMain.Parent = MainFrame
 
-Discord.Name = "Discord"
-Discord.Parent = Main
-Discord.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-Discord.BackgroundTransparency = 1.000
-Discord.Position = UDim2.new(0.05, 0, 0.85, 0)
-Discord.Size = UDim2.new(0, 450, 0, 30)
-Discord.Font = Enum.Font.FredokaOne
-Discord.Text = "https://discord.gg/wURB2qfu"
-Discord.TextColor3 = Color3.fromRGB(0, 255, 255)
-Discord.TextScaled = true
-Discord.TextSize = 20.000
-Discord.TextWrapped = true
+UIStroke.Thickness = 2
+UIStroke.Color = Color3.fromRGB(255, 255, 0)
+UIStroke.Parent = MainFrame
+
+-- Navigation Frame
+NavFrame.Name = "NavFrame"
+NavFrame.Parent = MainFrame
+NavFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+NavFrame.Size = UDim2.new(0, 150, 1, 0)
+
+UICornerNav.CornerRadius = UDim.new(0, 6)
+UICornerNav.Parent = NavFrame
+
+-- Content Frame
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Parent = MainFrame
+ContentFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ContentFrame.Position = UDim2.new(0, 150, 0, 0)
+ContentFrame.Size = UDim2.new(1, -150, 1, 0)
+
+-- Tab 1 Button
+Tab1Btn.Name = "Tab1Btn"
+Tab1Btn.Parent = NavFrame
+Tab1Btn.Text = "Main"
+Tab1Btn.Size = UDim2.new(1, 0, 0, 50)
+Tab1Btn.Position = UDim2.new(0, 0, 0, 20)
+Tab1Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Tab1Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Tab1Btn.Font = Enum.Font.FredokaOne
+Tab1Btn.TextScaled = true
+
+-- Tab 2 Button
+Tab2Btn.Name = "Tab2Btn"
+Tab2Btn.Parent = NavFrame
+Tab2Btn.Text = "Credits"
+Tab2Btn.Size = UDim2.new(1, 0, 0, 50)
+Tab2Btn.Position = UDim2.new(0, 0, 0, 80)
+Tab2Btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Tab2Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+Tab2Btn.Font = Enum.Font.FredokaOne
+Tab2Btn.TextScaled = true
+
+-- Tab 1 Content
+Tab1Content.Name = "Tab1Content"
+Tab1Content.Parent = ContentFrame
+Tab1Content.Size = UDim2.new(1, 0, 1, 0)
+Tab1Content.BackgroundTransparency = 1
+Tab1Content.Visible = true
+
+local label1 = Instance.new("TextLabel", Tab1Content)
+label1.Text = "Welcome to the Hub!"
+label1.Size = UDim2.new(1, 0, 0, 50)
+label1.Position = UDim2.new(0.1, 0, 0.1, 0)
+label1.BackgroundTransparency = 1
+label1.Font = Enum.Font.FredokaOne
+label1.TextColor3 = Color3.fromRGB(255, 255, 255)
+label1.TextScaled = true
+
+-- Tab 2 Content
+Tab2Content.Name = "Tab2Content"
+Tab2Content.Parent = ContentFrame
+Tab2Content.Size = UDim2.new(1, 0, 1, 0)
+Tab2Content.BackgroundTransparency = 1
+Tab2Content.Visible = false
+
+local label2 = Instance.new("TextLabel", Tab2Content)
+label2.Text = "Script by Long Dzz\nDiscord: discord.gg/wURB2qfu"
+label2.Size = UDim2.new(1, -40, 0, 100)
+label2.Position = UDim2.new(0, 20, 0.1, 0)
+label2.BackgroundTransparency = 1
+label2.Font = Enum.Font.FredokaOne
+label2.TextColor3 = Color3.fromRGB(0, 255, 255)
+label2.TextScaled = true
+label2.TextWrapped = true
+
+-- Close Button
+CloseBtn.Name = "CloseBtn"
+CloseBtn.Parent = MainFrame
+CloseBtn.Text = "X"
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 5)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.Font = Enum.Font.FredokaOne
+CloseBtn.TextScaled = true
+
+-- Button Functionality
+Tab1Btn.MouseButton1Click:Connect(function()
+	Tab1Content.Visible = true
+	Tab2Content.Visible = false
+end)
+
+Tab2Btn.MouseButton1Click:Connect(function()
+	Tab1Content.Visible = false
+	Tab2Content.Visible = true
+end)
+
+CloseBtn.MouseButton1Click:Connect(function()
+	ScreenGui:Destroy()
+end)
