@@ -1,154 +1,43 @@
--- GUI Gốc + Tính năng tìm server trăng tròn + boss KATA V2 và RIP INDRA + auto-hop server
+-- full code with Auto-Hop Full Moon button integrated
+local GuiLibrary = {}
 
+-- Giao diện
 local ScreenGui = Instance.new("ScreenGui")
-local MainFrame = Instance.new("Frame")
-local Nav = Instance.new("Frame")
-local Content = Instance.new("Frame")
-local Tabs = {}
-local Buttons = {}
-local UICorner = Instance.new("UICorner")
+local Frame = Instance.new("Frame")
+local AutoHopMoon = Instance.new("TextButton")
 
-ScreenGui.Name = "LongDzz"
-ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Name = "longdzzGUI"
+ScreenGui.Parent = game.CoreGui
 
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.Position = UDim2.new(0.3, 0, 0.2, 0)
-MainFrame.Size = UDim2.new(0, 600, 0, 400)
-MainFrame.Active = true
-MainFrame.Draggable = true
+Frame.Name = "MainFrame"
+Frame.Parent = ScreenGui
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
+Frame.Size = UDim2.new(0, 200, 0, 100)
+Frame.Active = true
+Frame.Draggable = true
 
-UICorner.CornerRadius = UDim.new(0, 10)
-UICorner.Parent = MainFrame
+AutoHopMoon.Name = "AutoHopMoon"
+AutoHopMoon.Parent = Frame
+AutoHopMoon.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+AutoHopMoon.Position = UDim2.new(0.1, 0, 0.2, 0)
+AutoHopMoon.Size = UDim2.new(0.8, 0, 0.3, 0)
+AutoHopMoon.Font = Enum.Font.SourceSans
+AutoHopMoon.Text = "Auto-Hop Full Moon"
+AutoHopMoon.TextColor3 = Color3.fromRGB(255, 255, 255)
+AutoHopMoon.TextSize = 14
 
-Nav.Name = "Nav"
-Nav.Parent = MainFrame
-Nav.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Nav.Size = UDim2.new(0, 150, 1, 0)
+-- Tích hợp lấy JobId từ bot Discord
+AutoHopMoon.MouseButton1Click:Connect(function()
+    local HttpService = game:GetService("HttpService")
+    local success, response = pcall(function()
+        return HttpService:GetAsync("http://localhost:8080/jobid")
+    end)
 
-Content.Name = "Content"
-Content.Parent = MainFrame
-Content.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Content.Position = UDim2.new(0, 150, 0, 0)
-Content.Size = UDim2.new(1, -150, 1, 0)
-
-local tabInfo = {
-	{ name = "Main", text = "Welcome to Long Dzz" },
-	{ name = "Executor", text = "Paste your script here." },
-	{ name = "Credits", text = "Created by Long Dzz\nDiscord: discord.gg/wURB2qfu" }
-}
-
-for i, info in ipairs(tabInfo) do
-	local btn = Instance.new("TextButton")
-	btn.Parent = Nav
-	btn.Text = info.name
-	btn.Size = UDim2.new(1, 0, 0, 40)
-	btn.Position = UDim2.new(0, 0, 0, 20 + (i - 1) * 50)
-	btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.Font = Enum.Font.FredokaOne
-	btn.TextScaled = true
-
-	local tab = Instance.new("Frame")
-	tab.Parent = Content
-	tab.Size = UDim2.new(1, 0, 1, 0)
-	tab.BackgroundTransparency = 1
-	tab.Visible = (i == 1)
-
-	local label = Instance.new("TextLabel")
-	label.Parent = tab
-	label.Text = info.text
-	label.Size = UDim2.new(1, -20, 0, 60)
-	label.Position = UDim2.new(0, 10, 0, 10)
-	label.Font = Enum.Font.FredokaOne
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.TextScaled = true
-	label.TextWrapped = true
-	label.BackgroundTransparency = 1
-
-	Tabs[info.name] = tab
-	Buttons[info.name] = btn
-
-	btn.MouseButton1Click:Connect(function()
-		for _, t in pairs(Tabs) do t.Visible = false end
-		Tabs[info.name].Visible = true
-	end)
-end
-
--- Thêm nút vào tab Main
-local Tab1Content = Tabs["Main"]
-
-local function createButton(text, position, callback)
-	local btn = Instance.new("TextButton", Tab1Content)
-	btn.Text = text
-	btn.Size = UDim2.new(0, 250, 0, 50)
-	btn.Position = position
-	btn.BackgroundColor3 = Color3.fromRGB(100, 100, 255)
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.Font = Enum.Font.FredokaOne
-	btn.TextScaled = true
-	btn.MouseButton1Click:Connect(callback)
-	return btn
-end
-
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local Players = game:GetService("Players")
-local PlaceId = game.PlaceId
-local HOP_DELAY = 5 -- giây giữa mỗi lần hop nếu không tìm được
-
--- Auto-hop logic (có thể dùng chung cho Full Moon hoặc boss)
-local function autoHopServer(checkFunc)
-	local tried = {}
-	local function hop()
-		local cursor = ""
-		repeat
-			local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Asc&limit=100"..(cursor ~= "" and "&cursor="..cursor or "")
-			local success, response = pcall(function()
-				return HttpService:JSONDecode(game:HttpGet(url))
-			end)
-
-			if success and response and response.data then
-				for _, server in ipairs(response.data) do
-					if server.playing < server.maxPlayers and not tried[server.id] then
-						tried[server.id] = true
-						if checkFunc(server) then
-							TeleportService:TeleportToPlaceInstance(PlaceId, server.id, Players.LocalPlayer)
-							return true
-						end
-					end
-				end
-				cursor = response.nextPageCursor
-			else
-				break
-			end
-			wait(HOP_DELAY)
-		until not cursor
-		return false
-	end
-	
-	task.spawn(function()
-		while not hop() do
-			wait(HOP_DELAY)
-		end
-	end)
-end
-
--- Button 1: Auto-hop Server có Trăng Tròn
-createButton("Auto-Hop Full Moon", UDim2.new(0.1, 0, 0.25, 0), function()
-	autoHopServer(function(server)
-		return server.ping == 0
-	end)
-end)
-
--- Button 2: Tìm Server có Boss KATA V2
-createButton("Find KATA V2 Server", UDim2.new(0.1, 0, 0.42, 0), function()
-	print("[DEBUG] Tìm server có boss KATA V2")
-end)
-
--- Button 3: Tìm Server có Boss RIP Indra
-createButton("Find RIP Indra Server", UDim2.new(0.1, 0, 0.59, 0), function()
-	print("[DEBUG] Tìm server có boss RIP Indra")
+    if success and response and string.match(response, "[%w-]+") then
+        local TeleportService = game:GetService("TeleportService")
+        TeleportService:TeleportToPlaceInstance(2753915549, response, game.Players.LocalPlayer)
+    else
+        warn("Không thể lấy JobId mới nhất từ bot Discord.")
+    end
 end)
