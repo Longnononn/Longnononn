@@ -1,7 +1,9 @@
--- GUI Auto-Hop + Rejoin + Ping Viewer
+-- GUI Auto-Hop + Rejoin + Ping Viewer (Gradient + Anim + Icon)
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
 -- GUI
@@ -12,48 +14,65 @@ local Frame = Instance.new("Frame", ScreenGui)
 Frame.Name = "MainFrame"
 Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
-Frame.Size = UDim2.new(0, 250, 0, 160)
+Frame.Size = UDim2.new(0, 270, 0, 190)
 Frame.Active = true
 Frame.Draggable = true
 Frame.Visible = false
-Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
 Instance.new("UIStroke", Frame).Color = Color3.fromRGB(85, 85, 255)
+
+local gradient = Instance.new("UIGradient", Frame)
+gradient.Color = ColorSequence.new{
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(85, 85, 255)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 85, 255))
+}
+gradient.Rotation = 45
 
 -- Toggle button
 local ToggleButton = Instance.new("ImageButton", ScreenGui)
 ToggleButton.Size = UDim2.new(0, 50, 0, 50)
 ToggleButton.Position = UDim2.new(0.05, 0, 0.2, 0)
 ToggleButton.BackgroundColor3 = Color3.fromRGB(85, 85, 255)
-ToggleButton.Image = "rbxassetid://17250817867"
+ToggleButton.Image = "rbxassetid://17250817867" -- icon mặt trăng
 ToggleButton.Draggable = true
 Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", ToggleButton).Color = Color3.fromRGB(255, 255, 255)
+
 ToggleButton.MouseButton1Click:Connect(function()
     Frame.Visible = not Frame.Visible
 end)
 
--- Nút chức năng
+-- Tạo nút với hiệu ứng
 local function createButton(name, text, yPos, callback)
     local btn = Instance.new("TextButton", Frame)
     btn.Name = name
-    btn.Size = UDim2.new(0.8, 0, 0.2, 0)
+    btn.Size = UDim2.new(0.8, 0, 0.18, 0)
     btn.Position = UDim2.new(0.1, 0, yPos, 0)
-    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-    btn.Font = Enum.Font.Gotham
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.Font = Enum.Font.GothamBold
     btn.Text = text
-    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
     btn.TextSize = 14
     btn.AutoButtonColor = false
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 10)
 
-    btn.MouseEnter:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(65, 65, 65) end)
-    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45) end)
+    local gradient = Instance.new("UIGradient", btn)
+    gradient.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 100, 255)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(100, 255, 255))
+    }
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(40, 40, 40)}):Play()
+    end)
     btn.MouseButton1Click:Connect(callback)
-
-    return btn
 end
 
--- Auto-Hop từ Replit webhook
-createButton("AutoHopMoon", "Auto-Hop Full Moon", 0.1, function()
+-- Nút chức năng
+createButton("AutoHopMoon", "🌕 Auto-Hop Full Moon", 0.1, function()
     local success, response = pcall(function()
         return HttpService:GetAsync("https://LikableUnitedPublishers.longnononpro.repl.co/jobid")
     end)
@@ -65,12 +84,10 @@ createButton("AutoHopMoon", "Auto-Hop Full Moon", 0.1, function()
     end
 end)
 
--- Rejoin server hiện tại
 createButton("RejoinBtn", "🔁 Rejoin Server", 0.35, function()
     TeleportService:Teleport(game.PlaceId, LocalPlayer)
 end)
 
--- Hop random server khác
 createButton("RandomHop", "🎲 Hop Random Server", 0.6, function()
     local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=100"))
     for _, server in ipairs(servers.data) do
@@ -81,16 +98,17 @@ createButton("RandomHop", "🎲 Hop Random Server", 0.6, function()
     end
 end)
 
--- Ping hiển thị
+-- Ping
 local PingLabel = Instance.new("TextLabel", Frame)
-PingLabel.Size = UDim2.new(1, 0, 0.15, 0)
-PingLabel.Position = UDim2.new(0, 0, 0.85, 0)
+PingLabel.Size = UDim2.new(1, 0, 0.1, 0)
+PingLabel.Position = UDim2.new(0, 0, 0.9, 0)
 PingLabel.BackgroundTransparency = 1
 PingLabel.Font = Enum.Font.Code
 PingLabel.TextSize = 13
 PingLabel.TextColor3 = Color3.fromRGB(200, 255, 200)
+PingLabel.TextStrokeTransparency = 0.8
 
-game:GetService("RunService").RenderStepped:Connect(function()
+RunService.RenderStepped:Connect(function()
     local stats = LocalPlayer:FindFirstChild("NetworkStats")
     if stats then
         local ping = stats:FindFirstChild("Data Ping")
