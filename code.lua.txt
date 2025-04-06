@@ -1,20 +1,12 @@
--- Giao diện có nút mèo tròn mở/đóng + Auto-Hop Full Moon
-local GuiLibrary = {}
+-- GUI Auto-Hop Full Moon từ Discord Bot + Replit Server
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 
--- Giao diện chính
+-- Giao diện
 local ScreenGui = Instance.new("ScreenGui")
-local Frame = Instance.new("Frame")
-local AutoHopMoon = Instance.new("TextButton")
-local ToggleButton = Instance.new("ImageButton")
-local UICorner1 = Instance.new("UICorner")
-local UICorner2 = Instance.new("UICorner")
-local UICorner3 = Instance.new("UICorner")
-local UIStroke = Instance.new("UIStroke")
-
 ScreenGui.Name = "longdzzGUI"
 ScreenGui.Parent = game.CoreGui
 
--- Khung chính
 local Frame = Instance.new("Frame")
 Frame.Name = "MainFrame"
 Frame.Parent = ScreenGui
@@ -23,16 +15,16 @@ Frame.Position = UDim2.new(0.3, 0, 0.3, 0)
 Frame.Size = UDim2.new(0, 240, 0, 120)
 Frame.Active = true
 Frame.Draggable = true
-Frame.Visible = false -- Ẩn mặc định
+Frame.Visible = false
 
+local UICorner1 = Instance.new("UICorner", Frame)
 UICorner1.CornerRadius = UDim.new(0, 10)
-UICorner1.Parent = Frame
 
-UIStroke.Parent = Frame
+local UIStroke = Instance.new("UIStroke", Frame)
 UIStroke.Color = Color3.fromRGB(85, 85, 255)
 UIStroke.Thickness = 1.5
 
--- Nút chức năng Auto-Hop
+local AutoHopMoon = Instance.new("TextButton")
 AutoHopMoon.Name = "AutoHopMoon"
 AutoHopMoon.Parent = Frame
 AutoHopMoon.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
@@ -42,11 +34,9 @@ AutoHopMoon.Font = Enum.Font.Gotham
 AutoHopMoon.Text = "Auto-Hop Full Moon"
 AutoHopMoon.TextColor3 = Color3.fromRGB(255, 255, 255)
 AutoHopMoon.TextSize = 16
+Instance.new("UICorner", AutoHopMoon).CornerRadius = UDim.new(0, 8)
 
-UICorner2.CornerRadius = UDim.new(0, 8)
-UICorner2.Parent = AutoHopMoon
-
--- Hover nút Auto-Hop
+-- Hover
 AutoHopMoon.MouseEnter:Connect(function()
     AutoHopMoon.BackgroundColor3 = Color3.fromRGB(65, 65, 65)
 end)
@@ -54,36 +44,32 @@ AutoHopMoon.MouseLeave:Connect(function()
     AutoHopMoon.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 end)
 
--- Nút hình tròn mèo khóc mở/đóng GUI
+-- Nút mở/ẩn GUI
+local ToggleButton = Instance.new("ImageButton")
 ToggleButton.Name = "ToggleButton"
 ToggleButton.Parent = ScreenGui
 ToggleButton.BackgroundColor3 = Color3.fromRGB(85, 85, 255)
 ToggleButton.Position = UDim2.new(0.05, 0, 0.2, 0)
 ToggleButton.Size = UDim2.new(0, 50, 0, 50)
-ToggleButton.Image = "rbxassetid://17250817867" -- Meme mèo khóc
+ToggleButton.Image = "rbxassetid://17250817867"
 ToggleButton.Active = true
 ToggleButton.Draggable = true
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
 
-UICorner3.CornerRadius = UDim.new(1, 0)
-UICorner3.Parent = ToggleButton
-
--- Sự kiện click vào nút mèo
 ToggleButton.MouseButton1Click:Connect(function()
     Frame.Visible = not Frame.Visible
 end)
 
--- Chức năng chính của Auto-Hop
+-- Nút "Auto-Hop" sẽ lấy JobId từ Replit Server
 AutoHopMoon.MouseButton1Click:Connect(function()
-    local HttpService = game:GetService("HttpService")
     local success, response = pcall(function()
-        -- Thay localhost bằng URL của web server Replit
-        return HttpService:GetAsync("http://your-replit-url.repl.co/jobid")
+        -- Thay link dưới bằng REPLIT thật của bạn
+        return HttpService:GetAsync("https://your-repl-name.repl.co/jobid")
     end)
 
     if success and response and string.match(response, "[%w-]+") then
-        local TeleportService = game:GetService("TeleportService")
         TeleportService:TeleportToPlaceInstance(2753915549, response, game.Players.LocalPlayer)
     else
-        warn("Không thể lấy JobId mới nhất từ bot Discord.")
+        warn("❌ Không thể lấy JobId mới nhất từ bot Discord.")
     end
 end)
