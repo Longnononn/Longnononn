@@ -1,144 +1,360 @@
--- Bắt đầu script toggle menu cho KRNL
-
+-- Services
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
+local mouse = player:GetMouse()
 
--- Xóa GUI cũ nếu có
-local existingGui = playerGui:FindFirstChild("LongDzzToggleMenu")
-if existingGui then
-    existingGui:Destroy()
+-- Clear old GUI
+local playerGui = player:WaitForChild("PlayerGui")
+local oldGui = playerGui:FindFirstChild("ToggleMenu")
+if oldGui then
+    oldGui:Destroy()
 end
 
--- Tạo ScreenGui mới
+-- Create GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "LongDzzToggleMenu"
-screenGui.ResetOnSpawn = false
+screenGui.Name = "ToggleMenu"
 screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
 
--- Tạo Frame chứa menu
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 350, 0, 280)
-frame.Position = UDim2.new(0, 20, 0, 20)
-frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-frame.BorderSizePixel = 0
-frame.Parent = screenGui
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 360, 0, 280)
+mainFrame.Position = UDim2.new(0, 20, 0, 20)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
 
--- Tiêu đề menu
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
-title.BackgroundTransparency = 1
-title.Text = "Menu Toggle Switch (KRNL)"
-title.Font = Enum.Font.FredokaOne
-title.TextSize = 22
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Parent = frame
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "Toggle Menu (KRNL)"
+titleLabel.Font = Enum.Font.FredokaOne
+titleLabel.TextSize = 24
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.Parent = mainFrame
 
--- Hàm tạo nút toggle switch hình tròn gạt
-local function createToggleSwitch(parent, text, position, callback)
+-- Toggle switch creator (same as before)
+local function createToggleSwitch(parent, text, pos, callback)
     local container = Instance.new("Frame")
     container.Size = UDim2.new(0, 160, 0, 40)
-    container.Position = position
+    container.Position = pos
     container.BackgroundTransparency = 1
     container.Parent = parent
 
     local label = Instance.new("TextLabel")
     label.Text = text
-    label.Size = UDim2.new(0, 100, 1, 0)
-    label.Position = UDim2.new(0, 5, 0, 0)
+    label.Size = UDim2.new(0, 110, 1, 0)
+    label.Position = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.new(1,1,1)
-    label.Font = Enum.Font.FredokaOne
+    label.TextColor3 = Color3.fromRGB(240, 240, 240)
+    label.Font = Enum.Font.GothamBold
     label.TextSize = 18
     label.TextXAlignment = Enum.TextXAlignment.Left
     label.Parent = container
 
-    local toggleBackground = Instance.new("Frame")
-    toggleBackground.Size = UDim2.new(0, 50, 0, 25)
-    toggleBackground.Position = UDim2.new(0, 105, 0, 7)
-    toggleBackground.BackgroundColor3 = Color3.fromRGB(140,140,140)
-    toggleBackground.BorderSizePixel = 0
-    toggleBackground.ClipsDescendants = true
-    toggleBackground.Parent = container
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Size = UDim2.new(0, 50, 0, 26)
+    toggleFrame.Position = UDim2.new(0, 120, 0, 7)
+    toggleFrame.BackgroundColor3 = Color3.fromRGB(170, 170, 170)
+    toggleFrame.BorderSizePixel = 0
+    toggleFrame.Parent = container
+    toggleFrame.ClipsDescendants = true
 
-    local cornerBG = Instance.new("UICorner")
-    cornerBG.CornerRadius = UDim.new(0, 12)
-    cornerBG.Parent = toggleBackground
+    local toggleCorner = Instance.new("UICorner")
+    toggleCorner.CornerRadius = UDim.new(0, 13)
+    toggleCorner.Parent = toggleFrame
 
     local toggleCircle = Instance.new("Frame")
-    toggleCircle.Size = UDim2.new(0, 23, 0, 23)
-    toggleCircle.Position = UDim2.new(0, 1, 0, 1)
-    toggleCircle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-    toggleCircle.BorderSizePixel = 0
     toggleCircle.Name = "ToggleCircle"
-    toggleCircle.Parent = toggleBackground
+    toggleCircle.Size = UDim2.new(0, 24, 0, 24)
+    toggleCircle.Position = UDim2.new(0, 1, 0, 1)
+    toggleCircle.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
+    toggleCircle.BorderSizePixel = 0
+    toggleCircle.Parent = toggleFrame
 
-    local cornerCircle = Instance.new("UICorner")
-    cornerCircle.CornerRadius = UDim.new(1, 0)
-    cornerCircle.Parent = toggleCircle
+    local circleCorner = Instance.new("UICorner")
+    circleCorner.CornerRadius = UDim.new(1, 0)
+    circleCorner.Parent = toggleCircle
 
     local toggled = false
 
-    local function updateToggleVisual()
+    local function updateToggle()
         if toggled then
-            toggleBackground.BackgroundColor3 = Color3.fromRGB(50, 170, 50)
-            toggleCircle:TweenPosition(UDim2.new(1, -24, 0, 1), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+            toggleFrame.BackgroundColor3 = Color3.fromRGB(80, 210, 80)
+            toggleCircle:TweenPosition(UDim2.new(1, -25, 0, 1), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.25, true)
         else
-            toggleBackground.BackgroundColor3 = Color3.fromRGB(140, 140, 140)
-            toggleCircle:TweenPosition(UDim2.new(0, 1, 0, 1), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+            toggleFrame.BackgroundColor3 = Color3.fromRGB(170, 170, 170)
+            toggleCircle:TweenPosition(UDim2.new(0, 1, 0, 1), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.25, true)
         end
     end
 
-    toggleBackground.InputBegan:Connect(function(input)
+    toggleFrame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             toggled = not toggled
-            updateToggleVisual()
+            updateToggle()
             callback(toggled)
         end
     end)
 
-    updateToggleVisual()
+    updateToggle()
 
     return {
-        container = container,
-        set = function(state)
+        Set = function(state)
             toggled = state
-            updateToggleVisual()
+            updateToggle()
             callback(state)
         end,
-        get = function() return toggled end
+        Get = function()
+            return toggled
+        end
     }
 end
 
--- Tạo các toggle buttons
+-- Feature variables
+local fastAttackEnabled = false
+local aimNearestEnabled = false
+local aoeAttackEnabled = false
+local speedBoostEnabled = false
+local flyModeEnabled = false
+local noClipEnabled = false
+local espEnabled = false
+local autoFarmEnabled = false
+
+-- Helpers for features
+
+-- Fast Attack (example: spam click tool)
+local function fastAttack()
+    if fastAttackEnabled then
+        -- Spam activate tool if equipped
+        local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
+        if tool then
+            tool:Activate()
+        end
+    end
+end
+
+-- Aim Nearest (example: simple closest enemy aiming)
+local function aimNearest()
+    if not aimNearestEnabled then return end
+    local closestDist = math.huge
+    local closestEnemy = nil
+    for _, enemy in pairs(workspace:GetChildren()) do
+        if enemy:IsA("Model") and enemy:FindFirstChild("Humanoid") and enemy ~= character then
+            local hrpEnemy = enemy:FindFirstChild("HumanoidRootPart")
+            if hrpEnemy then
+                local dist = (hrpEnemy.Position - hrp.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closestEnemy = enemy
+                end
+            end
+        end
+    end
+    if closestEnemy then
+        local hrpEnemy = closestEnemy:FindFirstChild("HumanoidRootPart")
+        if hrpEnemy then
+            -- Look at enemy
+            local lookVector = (hrpEnemy.Position - hrp.Position).Unit
+            hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + lookVector)
+        end
+    end
+end
+
+-- AOE Attack placeholder (can spam attack with area effect)
+local function aoeAttack()
+    if aoeAttackEnabled then
+        -- Just spam tool activate for demo
+        local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
+        if tool then
+            tool:Activate()
+        end
+    end
+end
+
+-- Speed Boost
+local normalWalkSpeed = humanoid.WalkSpeed
+local function updateSpeedBoost()
+    if speedBoostEnabled then
+        humanoid.WalkSpeed = 32
+    else
+        humanoid.WalkSpeed = normalWalkSpeed
+    end
+end
+
+-- Fly Mode (simple)
+local flying = false
+local flyVelocity = Instance.new("BodyVelocity")
+flyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+flyVelocity.Velocity = Vector3.new(0, 0, 0)
+
+local function updateFlyMode()
+    if flyModeEnabled and not flying then
+        flying = true
+        flyVelocity.Parent = hrp
+    elseif not flyModeEnabled and flying then
+        flying = false
+        flyVelocity.Parent = nil
+    end
+end
+
+local function flyControl()
+    if flying then
+        local direction = Vector3.new(0, 0, 0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            direction = direction + hrp.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            direction = direction - hrp.CFrame.LookVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            direction = direction - hrp.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            direction = direction + hrp.CFrame.RightVector
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            direction = direction + Vector3.new(0,1,0)
+        end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+            direction = direction - Vector3.new(0,1,0)
+        end
+        flyVelocity.Velocity = direction.Unit * 50
+        if direction.Magnitude == 0 then
+            flyVelocity.Velocity = Vector3.new(0,0,0)
+        end
+    end
+end
+
+-- NoClip (simple)
+local function noClipLoop()
+    if noClipEnabled then
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and part.CanCollide == true then
+                part.CanCollide = false
+            end
+        end
+    else
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and part.CanCollide == false then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- ESP (highlight players)
+local espHighlights = {}
+
+local function toggleESP(state)
+    if state then
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local highlight = Instance.new("Highlight")
+                highlight.Adornee = plr.Character
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                highlight.FillTransparency = 0.5
+                highlight.OutlineColor = Color3.new(0, 0, 0)
+                highlight.OutlineTransparency = 0
+                highlight.Parent = screenGui
+                espHighlights[plr] = highlight
+            end
+        end
+    else
+        for _, hl in pairs(espHighlights) do
+            hl:Destroy()
+        end
+        espHighlights = {}
+    end
+end
+
+-- Auto Farm (demo: auto touch a part named "FarmPart" in workspace)
+local autoFarmPart = workspace:FindFirstChild("FarmPart")
+local autoFarmConnection
+
+local function toggleAutoFarm(state)
+    if state then
+        if autoFarmPart then
+            autoFarmConnection = RunService.Heartbeat:Connect(function()
+                if (hrp.Position - autoFarmPart.Position).Magnitude > 5 then
+                    hrp.CFrame = CFrame.new(autoFarmPart.Position + Vector3.new(0,3,0))
+                else
+                    -- Simulate click tool or other farm action here
+                    local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
+                    if tool then
+                        tool:Activate()
+                    end
+                end
+            end)
+        end
+    else
+        if autoFarmConnection then
+            autoFarmConnection:Disconnect()
+            autoFarmConnection = nil
+        end
+    end
+end
+
+-- Create toggles & connect callbacks
+
 local toggles = {}
 
-toggles.fastAttack = createToggleSwitch(frame, "Fast Attack", UDim2.new(0, 10, 0, 50), function(state)
-    print("FastAttack toggled:", state)
-    -- Thêm code bật tắt tính năng Fast Attack ở đây
+toggles.fastAttack = createToggleSwitch(mainFrame, "Fast Attack", UDim2.new(0, 10, 0, 50), function(state)
+    fastAttackEnabled = state
 end)
 
-toggles.aimNearest = createToggleSwitch(frame, "Aim Nearest", UDim2.new(0, 180, 0, 50), function(state)
-    print("AimNearest toggled:", state)
-    -- Code bật tắt Aim Nearest
+toggles.aimNearest = createToggleSwitch(mainFrame, "Aim Nearest", UDim2.new(0, 180, 0, 50), function(state)
+    aimNearestEnabled = state
 end)
 
-toggles.aoeAttack = createToggleSwitch(frame, "AOE Attack", UDim2.new(0, 10, 0, 100), function(state)
-    print("AOEAttack toggled:", state)
+toggles.aoeAttack = createToggleSwitch(mainFrame, "AOE Attack", UDim2.new(0, 10, 0, 100), function(state)
+    aoeAttackEnabled = state
 end)
 
-toggles.speedBoost = createToggleSwitch(frame, "Speed Boost", UDim2.new(0, 180, 0, 100), function(state)
-    print("SpeedBoost toggled:", state)
+toggles.speedBoost = createToggleSwitch(mainFrame, "Speed Boost", UDim2.new(0, 180, 0, 100), function(state)
+    speedBoostEnabled = state
+    updateSpeedBoost()
 end)
 
-toggles.flyMode = createToggleSwitch(frame, "Fly Mode", UDim2.new(0, 10, 0, 150), function(state)
-    print("FlyMode toggled:", state)
+toggles.flyMode = createToggleSwitch(mainFrame, "Fly Mode", UDim2.new(0, 10, 0, 150), function(state)
+    flyModeEnabled = state
+    updateFlyMode()
 end)
 
-toggles.noClip = createToggleSwitch(frame, "NoClip", UDim2.new(0, 180, 0, 150), function(state)
-    print("NoClip toggled:", state)
+toggles.noClip = createToggleSwitch(mainFrame, "NoClip", UDim2.new(0, 180, 0, 150), function(state)
+    noClipEnabled = state
 end)
 
-toggles.esp = createToggleSwitch(frame, "ESP", UDim2.new(0, 10, 0, 200), function(state)
-    print("ESP toggled:", state)
+toggles.esp = createToggleSwitch(mainFrame, "ESP", UDim2.new(0, 10, 0, 200), function(state)
+    espEnabled = state
+    toggleESP(state)
+end)
+
+toggles.autoFarm = createToggleSwitch(mainFrame, "Auto Farm", UDim2.new(0, 180, 0, 200), function(state)
+    autoFarmEnabled = state
+    toggleAutoFarm(state)
+end)
+
+-- Loops for features that need continuous update
+RunService.Heartbeat:Connect(function()
+    if fastAttackEnabled then fastAttack() end
+    if aimNearestEnabled then aimNearest() end
+    if aoeAttackEnabled then aoeAttack() end
+    if flyModeEnabled then flyControl() end
+    if noClipEnabled then noClipLoop() end
+end)
+
+-- Reset humanoid speed on character respawn
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = character:WaitForChild("Humanoid")
+    hrp = character:WaitForChild("HumanoidRootPart")
+    normalWalkSpeed = humanoid.WalkSpeed
+    updateSpeedBoost()
+    updateFlyMode()
+    noClipLoop()
 end)
