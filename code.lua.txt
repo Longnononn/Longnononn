@@ -1,402 +1,144 @@
--- Script by Long Dzz (Fix for KRNL + jump high + all requested features)
+-- Bắt đầu script toggle menu cho KRNL
 
---// SERVICES
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
---// CONFIG
-local ATTACK_RADIUS = 25
-local DAMAGE = 25
-local FAST_COOLDOWN = 0.1
-local NORMAL_COOLDOWN = 0.5
-
---// REMOTE SETUP
-local attackEvent = ReplicatedStorage:FindFirstChild("RangedAttackEvent")
-if not attackEvent then
-    attackEvent = Instance.new("RemoteEvent", ReplicatedStorage)
-    attackEvent.Name = "RangedAttackEvent"
+-- Xóa GUI cũ nếu có
+local existingGui = playerGui:FindFirstChild("LongDzzToggleMenu")
+if existingGui then
+    existingGui:Destroy()
 end
 
---// SERVER SIDE
-if not getgenv()._hookedServer then
-    getgenv()._hookedServer = true
+-- Tạo ScreenGui mới
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "LongDzzToggleMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
 
-    local lastAttack = {}
+-- Tạo Frame chứa menu
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 350, 0, 280)
+frame.Position = UDim2.new(0, 20, 0, 20)
+frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
 
-    attackEvent.OnServerEvent:Connect(function(player, targetPosition)
-        local now = tick()
-        if lastAttack[player.UserId] and now - lastAttack[player.UserId] < FAST_COOLDOWN then return end
-        lastAttack[player.UserId] = now
-
-        local char = player.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if not root then return end
-
-        print("[Server] Player Root Position:", root.Position)
-
-        if (targetPosition - root.Position).Magnitude > 60 then return end
-
-        local params = OverlapParams.new()
-        params.FilterDescendantsInstances = {char}
-        params.FilterType = Enum.RaycastFilterType.Exclude
-
-        local parts = workspace:GetPartBoundsInBox(CFrame.new(targetPosition), Vector3.new(ATTACK_RADIUS * 2, ATTACK_RADIUS * 2, ATTACK_RADIUS * 2), params)
-
-        for _, part in pairs(parts) do
-            local model = part:FindFirstAncestorOfClass("Model")
-            if model and model ~= char then
-                local hum = model:FindFirstChildOfClass("Humanoid")
-                if hum and hum.Health > 0 then
-                    hum:TakeDamage(DAMAGE)
-                end
-            end
-        end
-    end)
-end
-
---// CLIENT SIDE
-local FastAttack, AoEEnabled, AimEnabled, SpeedEnabled, NoClipEnabled, FlyEnabled, ESPEnabled = false, false, false, false, false, false, false
-local canAttack = true
-
-local function getNearestTarget()
-    local char = player.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    local closest, dist = nil, math.huge
-
-    for _, model in pairs(workspace:GetDescendants()) do
-        if model:IsA("Model") and model ~= char then
-            local hum = model:FindFirstChildOfClass("Humanoid")
-            local hrp = model:FindFirstChild("HumanoidRootPart")
-            if hum and hum.Health > 0 and hrp then
-                local d = (hrp.Position - root.Position).Magnitude
-                if d < ATTACK_RADIUS and d < dist then
-                    dist = d
-                    closest = hrp
-                end
-            end
-        end
-    end
-    return closest
-end
-
-local function attack()
-    if not AoEEnabled or not canAttack then return end
-    canAttack = false
-
-    local char = player.Character
-    if not char then
-        canAttack = true
-        return
-    end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then
-        canAttack = true
-        return
-    end
-
-    local targetPos = root.Position
-    if AimEnabled then
-        local target = getNearestTarget()
-        if target then
-            targetPos = target.Position
-        end
-    end
-
-    attackEvent:FireServer(targetPos)
-    task.wait(FastAttack and FAST_COOLDOWN or NORMAL_COOLDOWN)
-    canAttack = true
-end
-
--- Tool auto fire on activation
-local tool = Instance.new("Tool", player.Backpack)
-tool.RequiresHandle = false
-tool.Name = "RangedTool"
-tool.Activated:Connect(attack)
-
-UIS.TouchTap:Connect(function(_, gp)
-    if not gp and tool.Parent == player.Character then
-        tool:Activate()
-    end
-end)
-
--- Speed using Velocity boost (fix giật)
-local velocityBoosts = {}
-
-local function updateSpeed()
-    local char = player.Character
-    if not char then return end
-
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not hum or not root then return end
-
-    -- Remove old boosts
-    if velocityBoosts[root] then
-        velocityBoosts[root]:Destroy()
-        velocityBoosts[root] = nil
-    end
-
-    if SpeedEnabled then
-        local attachment = Instance.new("Attachment", root)
-        attachment.Name = "SpeedAttachment"
-
-        local vectorForce = Instance.new("VectorForce", root)
-        vectorForce.Attachment0 = attachment
-        vectorForce.Force = Vector3.new(0, 0, 0)
-        vectorForce.RelativeTo = Enum.ActuatorRelativeTo.Attachment0
-        vectorForce.Name = "SpeedVectorForce"
-        vectorForce.MaxForce = Vector3.new(1e5, 0, 1e5)
-
-        velocityBoosts[root] = vectorForce
-
-        RunService.Heartbeat:Connect(function()
-            if SpeedEnabled and player.Character == char then
-                local moveInput = Vector3.new(0, 0, 0)
-                if UIS:IsKeyDown(Enum.KeyCode.W) then
-                    moveInput = moveInput + Vector3.new(0, 0, -1)
-                end
-                if UIS:IsKeyDown(Enum.KeyCode.S) then
-                    moveInput = moveInput + Vector3.new(0, 0, 1)
-                end
-                if UIS:IsKeyDown(Enum.KeyCode.A) then
-                    moveInput = moveInput + Vector3.new(-1, 0, 0)
-                end
-                if UIS:IsKeyDown(Enum.KeyCode.D) then
-                    moveInput = moveInput + Vector3.new(1, 0, 0)
-                end
-
-                if moveInput.Magnitude > 0 then
-                    moveInput = moveInput.Unit
-                    local camCF = workspace.CurrentCamera.CFrame
-                    local moveDir = (camCF.RightVector * moveInput.X + camCF.LookVector * moveInput.Z)
-                    moveDir = Vector3.new(moveDir.X, 0, moveDir.Z).Unit
-                    vectorForce.Force = moveDir * 4000
-                else
-                    vectorForce.Force = Vector3.new(0, 0, 0)
-                end
-            else
-                vectorForce.Force = Vector3.new(0, 0, 0)
-            end
-        end)
-    end
-end
-
-player.CharacterAdded:Connect(updateSpeed)
-if player.Character then
-    updateSpeed()
-end
-
--- NoClip
-RunService.Stepped:Connect(function()
-    if NoClipEnabled then
-        local char = player.Character
-        if char then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
-    end
-end)
-
--- Fly using VectorForce + Attachment (fix anti-fly games)
-local flyForce, flyAttachment
-local flyHeartbeatConn
-
-local function toggleFly(state)
-    local char = player.Character
-    if not char then return end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-
-    if state then
-        if flyForce then flyForce:Destroy() end
-        if flyAttachment then flyAttachment:Destroy() end
-        if flyHeartbeatConn then flyHeartbeatConn:Disconnect() end
-
-        flyAttachment = Instance.new("Attachment", root)
-        flyAttachment.Name = "FlyAttachment"
-
-        flyForce = Instance.new("VectorForce", root)
-        flyForce.Attachment0 = flyAttachment
-        flyForce.RelativeTo = Enum.ActuatorRelativeTo.World
-        flyForce.MaxForce = Vector3.new(0, 9e5, 0)
-
-        flyHeartbeatConn = RunService.Heartbeat:Connect(function()
-            if FlyEnabled and player.Character == char then
-                local vel = Vector3.new(0,0,0)
-                if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                    vel = Vector3.new(0, 1500, 0)
-                elseif UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                    vel = Vector3.new(0, -1500, 0)
-                else
-                    vel = Vector3.new(0, 0, 0)
-                end
-                flyForce.Force = vel
-            else
-                flyForce.Force = Vector3.new(0, 0, 0)
-            end
-        end)
-    else
-        if flyForce then flyForce:Destroy() flyForce = nil end
-        if flyAttachment then flyAttachment:Destroy() flyAttachment = nil end
-        if flyHeartbeatConn then flyHeartbeatConn:Disconnect() flyHeartbeatConn = nil end
-    end
-end
-
--- ESP
-local function toggleESP(state)
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
-            local highlight = obj:FindFirstChildOfClass("Highlight")
-            if state then
-                if not highlight then
-                    local h = Instance.new("Highlight", obj)
-                    h.FillColor = Color3.new(1, 0, 0)
-                    h.OutlineColor = Color3.new(1, 1, 1)
-                end
-            else
-                if highlight then highlight:Destroy() end
-            end
-        end
-    end
-end
-
--- GUI
-local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-gui.ResetOnSpawn = false
-
-local title = Instance.new("TextLabel", gui)
-title.Size = UDim2.new(0, 250, 0, 35)
-title.Position = UDim2.new(0, 10, 0, 10)
+-- Tiêu đề menu
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
 title.BackgroundTransparency = 1
-title.Text = "Script by: Long Dzz"
+title.Text = "Menu Toggle Switch (KRNL)"
 title.Font = Enum.Font.FredokaOne
-title.TextScaled = true
-title.TextColor3 = Color3.new(1, 1, 1)
+title.TextSize = 22
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Parent = frame
 
-task.spawn(function()
-    while true do
-        local t = tick()
-        title.TextColor3 = Color3.fromRGB(
-            math.floor(math.abs(math.sin(t)) * 255),
-            math.floor(math.abs(math.sin(t + 2)) * 255),
-            math.floor(math.abs(math.sin(t + 4)) * 255)
-        )
-        task.wait(0.1)
-    end
-end)
+-- Hàm tạo nút toggle switch hình tròn gạt
+local function createToggleSwitch(parent, text, position, callback)
+    local container = Instance.new("Frame")
+    container.Size = UDim2.new(0, 160, 0, 40)
+    container.Position = position
+    container.BackgroundTransparency = 1
+    container.Parent = parent
 
-local container = Instance.new("Frame", gui)
-container.Size = UDim2.new(0, 300, 0, 200)
-container.Position = UDim2.new(0, 10, 0, 50)
-container.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-container.BorderSizePixel = 0
+    local label = Instance.new("TextLabel")
+    label.Text = text
+    label.Size = UDim2.new(0, 100, 1, 0)
+    label.Position = UDim2.new(0, 5, 0, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1,1,1)
+    label.Font = Enum.Font.FredokaOne
+    label.TextSize = 18
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = container
 
-local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0, 40, 0, 40)
-toggleBtn.Position = UDim2.new(0, 290, 0, 30)
-toggleBtn.Text = "+"
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextSize = 24
-toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-toggleBtn.TextColor3 = Color3.new(1, 1, 1)
-toggleBtn.BorderSizePixel = 0
-toggleBtn.ClipsDescendants = true
-toggleBtn.AutoButtonColor = true
-toggleBtn.ZIndex = 10
-toggleBtn.TextWrapped = true
-toggleBtn.TextScaled = true
-toggleBtn.Name = "MenuToggle"
-toggleBtn.AnchorPoint = Vector2.new(0.5, 0.5)
-toggleBtn.Position = UDim2.new(0, 290, 0, 30)
-toggleBtn.SizeConstraint = Enum.SizeConstraint.RelativeYY
-local uicorner = Instance.new("UICorner", toggleBtn)
+    local toggleBackground = Instance.new("Frame")
+    toggleBackground.Size = UDim2.new(0, 50, 0, 25)
+    toggleBackground.Position = UDim2.new(0, 105, 0, 7)
+    toggleBackground.BackgroundColor3 = Color3.fromRGB(140,140,140)
+    toggleBackground.BorderSizePixel = 0
+    toggleBackground.ClipsDescendants = true
+    toggleBackground.Parent = container
 
-local menuVisible = true
-toggleBtn.MouseButton1Click:Connect(function()
-    menuVisible = not menuVisible
-    toggleBtn.Text = menuVisible and "-" or "+"
-    TweenService:Create(container, TweenInfo.new(0.3), {
-        Position = menuVisible and UDim2.new(0, 10, 0, 50) or UDim2.new(0, -350, 0, 50)
-    }):Play()
-end)
+    local cornerBG = Instance.new("UICorner")
+    cornerBG.CornerRadius = UDim.new(0, 12)
+    cornerBG.Parent = toggleBackground
 
--- Helper: Create Toggle Button
-local function createToggle(name, pos, color, callback)
-    local btn = Instance.new("TextButton", container)
-    btn.Size = UDim2.new(0, 140, 0, 30)
-    btn.Position = pos
-    btn.Text = name
-    btn.Font = Enum.Font.FredokaOne
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.BackgroundColor3 = color
-    btn.AutoButtonColor = true
-    btn.BorderSizePixel = 0
-    btn.Name = name:gsub(" ", "")
-    btn.MouseButton1Click:Connect(function()
-        callback()
-    end)
-    btn.UICorner = Instance.new("UICorner", btn)
-    return btn
-end
+    local toggleCircle = Instance.new("Frame")
+    toggleCircle.Size = UDim2.new(0, 23, 0, 23)
+    toggleCircle.Position = UDim2.new(0, 1, 0, 1)
+    toggleCircle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    toggleCircle.BorderSizePixel = 0
+    toggleCircle.Name = "ToggleCircle"
+    toggleCircle.Parent = toggleBackground
 
--- Toggles
-local buttons = {}
+    local cornerCircle = Instance.new("UICorner")
+    cornerCircle.CornerRadius = UDim.new(1, 0)
+    cornerCircle.Parent = toggleCircle
 
-buttons["FastAttack"] = createToggle("Fast Attack", UDim2.new(0, 10, 0, 10), Color3.fromRGB(80, 170, 80), function()
-    FastAttack = not FastAttack
-end)
+    local toggled = false
 
-buttons["Aim"] = createToggle("Aim Nearest", UDim2.new(0, 150, 0, 10), Color3.fromRGB(80, 170, 80), function()
-    AimEnabled = not AimEnabled
-end)
-
-buttons["AOE"] = createToggle("AOE Attack", UDim2.new(0, 10, 0, 50), Color3.fromRGB(170, 80, 80), function()
-    AoEEnabled = not AoEEnabled
-end)
-
-buttons["Speed"] = createToggle("Speed Boost", UDim2.new(0, 150, 0, 50), Color3.fromRGB(80, 80, 170), function()
-    SpeedEnabled = not SpeedEnabled
-    updateSpeed()
-end)
-
-buttons["Fly"] = createToggle("Fly Mode", UDim2.new(0, 10, 0, 90), Color3.fromRGB(80, 80, 170), function()
-    FlyEnabled = not FlyEnabled
-    toggleFly(FlyEnabled)
-end)
-
-buttons["NoClip"] = createToggle("NoClip", UDim2.new(0, 150, 0, 90), Color3.fromRGB(170, 170, 80), function()
-    NoClipEnabled = not NoClipEnabled
-end)
-
-buttons["ESP"] = createToggle("ESP", UDim2.new(0, 10, 0, 130), Color3.fromRGB(170, 80, 170), function()
-    ESPEnabled = not ESPEnabled
-    toggleESP(ESPEnabled)
-end)
-
--- Jump High: Add force on Y when space pressed + Speed enabled
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.Space then
-        local char = player.Character
-        if not char then return end
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        local root = char:FindFirstChild("HumanoidRootPart")
-        if hum and root and SpeedEnabled then
-            root.Velocity = root.Velocity + Vector3.new(0, 80, 0) -- nhảy cao hơn
+    local function updateToggleVisual()
+        if toggled then
+            toggleBackground.BackgroundColor3 = Color3.fromRGB(50, 170, 50)
+            toggleCircle:TweenPosition(UDim2.new(1, -24, 0, 1), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+        else
+            toggleBackground.BackgroundColor3 = Color3.fromRGB(140, 140, 140)
+            toggleCircle:TweenPosition(UDim2.new(0, 1, 0, 1), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
         end
     end
+
+    toggleBackground.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggled = not toggled
+            updateToggleVisual()
+            callback(toggled)
+        end
+    end)
+
+    updateToggleVisual()
+
+    return {
+        container = container,
+        set = function(state)
+            toggled = state
+            updateToggleVisual()
+            callback(state)
+        end,
+        get = function() return toggled end
+    }
+end
+
+-- Tạo các toggle buttons
+local toggles = {}
+
+toggles.fastAttack = createToggleSwitch(frame, "Fast Attack", UDim2.new(0, 10, 0, 50), function(state)
+    print("FastAttack toggled:", state)
+    -- Thêm code bật tắt tính năng Fast Attack ở đây
 end)
 
-print("Script loaded successfully!")
+toggles.aimNearest = createToggleSwitch(frame, "Aim Nearest", UDim2.new(0, 180, 0, 50), function(state)
+    print("AimNearest toggled:", state)
+    -- Code bật tắt Aim Nearest
+end)
+
+toggles.aoeAttack = createToggleSwitch(frame, "AOE Attack", UDim2.new(0, 10, 0, 100), function(state)
+    print("AOEAttack toggled:", state)
+end)
+
+toggles.speedBoost = createToggleSwitch(frame, "Speed Boost", UDim2.new(0, 180, 0, 100), function(state)
+    print("SpeedBoost toggled:", state)
+end)
+
+toggles.flyMode = createToggleSwitch(frame, "Fly Mode", UDim2.new(0, 10, 0, 150), function(state)
+    print("FlyMode toggled:", state)
+end)
+
+toggles.noClip = createToggleSwitch(frame, "NoClip", UDim2.new(0, 180, 0, 150), function(state)
+    print("NoClip toggled:", state)
+end)
+
+toggles.esp = createToggleSwitch(frame, "ESP", UDim2.new(0, 10, 0, 200), function(state)
+    print("ESP toggled:", state)
+end)
