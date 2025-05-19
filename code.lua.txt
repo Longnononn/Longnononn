@@ -2,50 +2,44 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
-local mouse = player:GetMouse()
 
 -- Clear old GUI
 local playerGui = player:WaitForChild("PlayerGui")
 local oldGui = playerGui:FindFirstChild("ToggleMenu")
-if oldGui then
-    oldGui:Destroy()
-end
+if oldGui then oldGui:Destroy() end
 
 -- Create GUI
-local screenGui = Instance.new("ScreenGui")
+local screenGui = Instance.new("ScreenGui", playerGui)
 screenGui.Name = "ToggleMenu"
-screenGui.Parent = playerGui
 screenGui.ResetOnSpawn = false
 
-local mainFrame = Instance.new("Frame")
+local mainFrame = Instance.new("Frame", screenGui)
 mainFrame.Size = UDim2.new(0, 360, 0, 280)
 mainFrame.Position = UDim2.new(0, 20, 0, 20)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
 
-local titleLabel = Instance.new("TextLabel")
+local titleLabel = Instance.new("TextLabel", mainFrame)
 titleLabel.Size = UDim2.new(1, 0, 0, 40)
 titleLabel.BackgroundTransparency = 1
 titleLabel.Text = "Toggle Menu (KRNL)"
 titleLabel.Font = Enum.Font.FredokaOne
 titleLabel.TextSize = 24
 titleLabel.TextColor3 = Color3.new(1, 1, 1)
-titleLabel.Parent = mainFrame
 
--- Toggle switch creator (same as before)
+-- Toggle switch creator
 local function createToggleSwitch(parent, text, pos, callback)
-    local container = Instance.new("Frame")
+    local container = Instance.new("Frame", parent)
     container.Size = UDim2.new(0, 160, 0, 40)
     container.Position = pos
     container.BackgroundTransparency = 1
-    container.Parent = parent
 
-    local label = Instance.new("TextLabel")
+    local label = Instance.new("TextLabel", container)
     label.Text = text
     label.Size = UDim2.new(0, 110, 1, 0)
     label.Position = UDim2.new(0, 10, 0, 0)
@@ -54,31 +48,28 @@ local function createToggleSwitch(parent, text, pos, callback)
     label.Font = Enum.Font.GothamBold
     label.TextSize = 18
     label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = container
 
-    local toggleFrame = Instance.new("Frame")
+    local toggleFrame = Instance.new("Frame", container)
     toggleFrame.Size = UDim2.new(0, 50, 0, 26)
     toggleFrame.Position = UDim2.new(0, 120, 0, 7)
     toggleFrame.BackgroundColor3 = Color3.fromRGB(170, 170, 170)
     toggleFrame.BorderSizePixel = 0
-    toggleFrame.Parent = container
     toggleFrame.ClipsDescendants = true
+    toggleFrame.AutoButtonColor = false
+    toggleFrame.Cursor = "PointingHand"
 
-    local toggleCorner = Instance.new("UICorner")
+    local toggleCorner = Instance.new("UICorner", toggleFrame)
     toggleCorner.CornerRadius = UDim.new(0, 13)
-    toggleCorner.Parent = toggleFrame
 
-    local toggleCircle = Instance.new("Frame")
+    local toggleCircle = Instance.new("Frame", toggleFrame)
     toggleCircle.Name = "ToggleCircle"
     toggleCircle.Size = UDim2.new(0, 24, 0, 24)
     toggleCircle.Position = UDim2.new(0, 1, 0, 1)
     toggleCircle.BackgroundColor3 = Color3.fromRGB(230, 230, 230)
     toggleCircle.BorderSizePixel = 0
-    toggleCircle.Parent = toggleFrame
 
-    local circleCorner = Instance.new("UICorner")
+    local circleCorner = Instance.new("UICorner", toggleCircle)
     circleCorner.CornerRadius = UDim.new(1, 0)
-    circleCorner.Parent = toggleCircle
 
     local toggled = false
 
@@ -114,7 +105,7 @@ local function createToggleSwitch(parent, text, pos, callback)
     }
 end
 
--- Feature variables
+-- Feature flags
 local fastAttackEnabled = false
 local aimNearestEnabled = false
 local aoeAttackEnabled = false
@@ -124,12 +115,12 @@ local noClipEnabled = false
 local espEnabled = false
 local autoFarmEnabled = false
 
--- Helpers for features
+-- Save original speed
+local normalWalkSpeed = humanoid.WalkSpeed
 
--- Fast Attack (example: spam click tool)
+-- Fast Attack
 local function fastAttack()
     if fastAttackEnabled then
-        -- Spam activate tool if equipped
         local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
         if tool then
             tool:Activate()
@@ -137,7 +128,7 @@ local function fastAttack()
     end
 end
 
--- Aim Nearest (example: simple closest enemy aiming)
+-- Aim Nearest Enemy
 local function aimNearest()
     if not aimNearestEnabled then return end
     local closestDist = math.huge
@@ -157,17 +148,14 @@ local function aimNearest()
     if closestEnemy then
         local hrpEnemy = closestEnemy:FindFirstChild("HumanoidRootPart")
         if hrpEnemy then
-            -- Look at enemy
-            local lookVector = (hrpEnemy.Position - hrp.Position).Unit
-            hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + lookVector)
+            hrp.CFrame = CFrame.new(hrp.Position, hrpEnemy.Position)
         end
     end
 end
 
--- AOE Attack placeholder (can spam attack with area effect)
+-- AOE Attack (demo spam activate)
 local function aoeAttack()
     if aoeAttackEnabled then
-        -- Just spam tool activate for demo
         local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
         if tool then
             tool:Activate()
@@ -176,7 +164,6 @@ local function aoeAttack()
 end
 
 -- Speed Boost
-local normalWalkSpeed = humanoid.WalkSpeed
 local function updateSpeedBoost()
     if speedBoostEnabled then
         humanoid.WalkSpeed = 32
@@ -185,7 +172,7 @@ local function updateSpeedBoost()
     end
 end
 
--- Fly Mode (simple)
+-- Fly Mode
 local flying = false
 local flyVelocity = Instance.new("BodyVelocity")
 flyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
@@ -222,14 +209,16 @@ local function flyControl()
         if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
             direction = direction - Vector3.new(0,1,0)
         end
-        flyVelocity.Velocity = direction.Unit * 50
-        if direction.Magnitude == 0 then
-            flyVelocity.Velocity = Vector3.new(0,0,0)
+
+        if direction.Magnitude > 0 then
+            flyVelocity.Velocity = direction.Unit * 50
+        else
+            flyVelocity.Velocity = Vector3.new(0, 0, 0)
         end
     end
 end
 
--- NoClip (simple)
+-- NoClip
 local function noClipLoop()
     if noClipEnabled then
         for _, part in pairs(character:GetChildren()) do
@@ -246,7 +235,7 @@ local function noClipLoop()
     end
 end
 
--- ESP (highlight players)
+-- ESP
 local espHighlights = {}
 
 local function toggleESP(state)
@@ -272,7 +261,7 @@ local function toggleESP(state)
     end
 end
 
--- Auto Farm (demo: auto touch a part named "FarmPart" in workspace)
+-- Auto Farm demo: moves to a part named "FarmPart" in workspace
 local autoFarmPart = workspace:FindFirstChild("FarmPart")
 local autoFarmConnection
 
@@ -283,7 +272,6 @@ local function toggleAutoFarm(state)
                 if (hrp.Position - autoFarmPart.Position).Magnitude > 5 then
                     hrp.CFrame = CFrame.new(autoFarmPart.Position + Vector3.new(0,3,0))
                 else
-                    -- Simulate click tool or other farm action here
                     local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
                     if tool then
                         tool:Activate()
@@ -299,8 +287,7 @@ local function toggleAutoFarm(state)
     end
 end
 
--- Create toggles & connect callbacks
-
+-- Create toggles
 local toggles = {}
 
 toggles.fastAttack = createToggleSwitch(mainFrame, "Fast Attack", UDim2.new(0, 10, 0, 50), function(state)
@@ -339,7 +326,7 @@ toggles.autoFarm = createToggleSwitch(mainFrame, "Auto Farm", UDim2.new(0, 180, 
     toggleAutoFarm(state)
 end)
 
--- Loops for features that need continuous update
+-- Main loop
 RunService.Heartbeat:Connect(function()
     if fastAttackEnabled then fastAttack() end
     if aimNearestEnabled then aimNearest() end
@@ -348,7 +335,7 @@ RunService.Heartbeat:Connect(function()
     if noClipEnabled then noClipLoop() end
 end)
 
--- Reset humanoid speed on character respawn
+-- Reset on respawn
 player.CharacterAdded:Connect(function(char)
     character = char
     humanoid = character:WaitForChild("Humanoid")
