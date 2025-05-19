@@ -1,4 +1,4 @@
--- Script by Long Dzz - All in one KRNL compatible
+-- Script by Long Dzz - All in one Fluxus compatible
 
 -- Auto Create RemoteEvent + Server-side + Client-side GUI/Tool features
 --// SERVICES
@@ -40,12 +40,12 @@ if not getgenv()._hookedServer then
 getgenv()._hookedServer = true
 local lastAttack = {}
 
-attackEvent.OnServerEvent:Connect(function(player, targetPosition)
+attackEvent.OnServerEvent:Connect(function(plr, targetPosition) -- 'player' đổi thành 'plr' cho tương thích
     local now = tick()
-    if lastAttack[player] and now - lastAttack[player] < FAST_COOLDOWN then return end
-    lastAttack[player] = now
+    if lastAttack[plr] and now - lastAttack[plr] < FAST_COOLDOWN then return end
+    lastAttack[plr] = now
 
-    local char = player.Character
+    local char = plr.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then return end
     local root = char.HumanoidRootPart
 
@@ -266,7 +266,7 @@ title.Position = UDim2.new(0, 10, 0, 10)
 
 title.BackgroundTransparency = 1
 
-title.Text = "Script by: Long Dzz"
+title.Text = "Script by: Long Dzz (Fluxus)" -- Đánh dấu là phiên bản Fluxus
 
 title.Font = Enum.Font.FredokaOne
 
@@ -360,4 +360,4 @@ createToggle("Bay", UDim2.new(0, 130, 0, 110), Color3.fromRGB(0, 255, 255), func
 
 createToggle("Hiện quái", UDim2.new(0, 10, 0, 160), Color3.fromRGB(255, 0, 0), function(s) ESPEnabled = s toggleESP(s) end)
 
-print("✅ Script RangedTool đã load hoàn tất!")
+print("✅ Script RangedTool đã load hoàn tất (executor)! ")
