@@ -1,16 +1,1 @@
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "RangedToolGUI"
-gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
-
-local title = Instance.new("TextLabel", gui)
-title.Size = UDim2.new(0, 250, 0, 35)
-title.Position = UDim2.new(0, 10, 0, 10)
-title.BackgroundTransparency = 1
-title.Text = "Script by: Long Dzz"
-title.Font = Enum.Font.FredokaOne
-title.TextScaled = true
-title.TextColor3 = Color3.new(1, 0, 1)
