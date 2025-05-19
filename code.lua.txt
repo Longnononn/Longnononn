@@ -1,33 +1,43 @@
-\-- Script by Long Dzz - All in one KRNL compatible
-\-- Auto Create RemoteEvent + Server-side + Client-side GUI/Tool features
+-- Script by Long Dzz - All in one KRNL compatible
 
-\--// SERVICES
-local Players = game\:GetService("Players")
-local ReplicatedStorage = game\:GetService("ReplicatedStorage")
-local RunService = game\:GetService("RunService")
-local UIS = game\:GetService("UserInputService")
-local TweenService = game\:GetService("TweenService")
+-- Auto Create RemoteEvent + Server-side + Client-side GUI/Tool features
+--// SERVICES
 
+local Players = game:GetService("Players")
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RunService = game:GetService("RunService")
+
+local UIS = game:GetService("UserInputService")
+
+local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
+--// CONFIG
 
-\--// CONFIG
-local ATTACK\_RADIUS = 25
+local ATTACK_RADIUS = 25
+
 local DAMAGE = 25
-local FAST\_COOLDOWN = 0.1
-local NORMAL\_COOLDOWN = 0.5
 
-\--// REMOTE SETUP
-local attackEvent = ReplicatedStorage\:FindFirstChild("RangedAttackEvent")
+local FAST_COOLDOWN = 0.1
+
+local NORMAL_COOLDOWN = 0.5
+--// REMOTE SETUP
+
+local attackEvent = ReplicatedStorage:FindFirstChild("RangedAttackEvent")
+
 if not attackEvent then
+
 attackEvent = Instance.new("RemoteEvent", ReplicatedStorage)
+
 attackEvent.Name = "RangedAttackEvent"
+
 end
+--// SERVER FUNCTION
 
-\--// SERVER FUNCTION
-if not getgenv().\_hookedServer then
-getgenv().\_hookedServer = true
+if not getgenv()._hookedServer then
 
-```
+getgenv()._hookedServer = true
 local lastAttack = {}
 
 attackEvent.OnServerEvent:Connect(function(player, targetPosition)
@@ -57,21 +67,21 @@ attackEvent.OnServerEvent:Connect(function(player, targetPosition)
         end
     end
 end)
-```
-
 end
+--// CLIENT SCRIPT
 
-\--// CLIENT SCRIPT
 local FastAttack, AoEEnabled, AimEnabled, SpeedEnabled, NoClipEnabled, FlyEnabled, ESPEnabled = false, false, false, false, false, false, false
+local menuVisible = true -- Biến theo dõi trạng thái menu
 local canAttack = true
-
 local function getNearestTarget()
-local char = player.Character
-if not char then return end
-local root = char\:FindFirstChild("HumanoidRootPart")
-if not root then return end
 
-```
+local char = player.Character
+
+if not char then return end
+
+local root = char:FindFirstChild("HumanoidRootPart")
+
+if not root then return end
 local closest, dist = nil, math.huge
 
 for _, model in pairs(workspace:GetDescendants()) do
@@ -88,15 +98,12 @@ for _, model in pairs(workspace:GetDescendants()) do
     end
 end
 return closest
-```
-
 end
-
 local function attack()
-if not AoEEnabled or not canAttack then return end
-canAttack = false
 
-```
+if not AoEEnabled or not canAttack then return end
+
+canAttack = false
 local char = player.Character
 if not char then return end
 local root = char:FindFirstChild("HumanoidRootPart")
@@ -113,55 +120,77 @@ end
 attackEvent:FireServer(targetPos)
 task.wait(FastAttack and FAST_COOLDOWN or NORMAL_COOLDOWN)
 canAttack = true
-```
-
 end
+-- Tool auto fire on activation
 
-\-- Tool auto fire on activation
 local tool = Instance.new("Tool", player.Backpack)
+
 tool.RequiresHandle = false
+
 tool.Name = "RangedTool"
-tool.Activated\:Connect(attack)
 
-UIS.TouchTap\:Connect(function(\_, gp)
+tool.Activated:Connect(attack)
+UIS.TouchTap:Connect(function(_, gp)
+
 if not gp and tool.Parent == player.Character then
-tool\:Activate()
-end
-end)
 
-\-- Speed
+tool:Activate()
+
+end
+
+end)
+-- Speed
+
 local function updateSpeed()
-local hum = player.Character and player.Character\:FindFirstChildOfClass("Humanoid")
+
+local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+
 if hum then
+
 hum.WalkSpeed = SpeedEnabled and 32 or 16
-end
+
 end
 
-player.CharacterAdded\:Connect(updateSpeed)
+end
+player.CharacterAdded:Connect(updateSpeed)
+-- NoClip
 
-\-- NoClip
-RunService.Stepped\:Connect(function()
+RunService.Stepped:Connect(function()
+
 if NoClipEnabled then
+
 local char = player.Character
+
 if char then
-for \_, part in pairs(char\:GetDescendants()) do
-if part\:IsA("BasePart") then
+
+for _, part in pairs(char:GetDescendants()) do
+
+if part:IsA("BasePart") then
+
 part.CanCollide = false
+
 end
+
 end
+
 end
+
 end
+
 end)
+-- Fly
 
-\-- Fly
 local flyBodyGyro, flyBodyVelocity
-local function toggleFly(state)
-local char = player.Character
-if not char then return end
-local hrp = char\:FindFirstChild("HumanoidRootPart")
-if not hrp then return end
 
-```
+local function toggleFly(state)
+
+local char = player.Character
+
+if not char then return end
+
+local hrp = char:FindFirstChild("HumanoidRootPart")
+
+if not hrp then return end
 if state then
     flyBodyGyro = Instance.new("BodyGyro", hrp)
     flyBodyGyro.P = 9e4
@@ -175,93 +204,160 @@ else
     if flyBodyGyro then flyBodyGyro:Destroy() end
     if flyBodyVelocity then flyBodyVelocity:Destroy() end
 end
-```
-
 end
+RunService.RenderStepped:Connect(function()
 
-RunService.RenderStepped\:Connect(function()
-if FlyEnabled and flyBodyVelocity and UIS\:IsKeyDown(Enum.KeyCode.Space) then
+if FlyEnabled and flyBodyVelocity and UIS:IsKeyDown(Enum.KeyCode.Space) then
+
 flyBodyVelocity.Velocity = Vector3.new(0, 50, 0)
+
 elseif FlyEnabled and flyBodyVelocity then
+
 flyBodyVelocity.Velocity = Vector3.zero
-end
-end)
 
-\-- ESP
+end
+
+end)
+-- ESP
+
 local function toggleESP(state)
-for \_, obj in pairs(workspace\:GetDescendants()) do
-if obj\:IsA("Model") and obj\:FindFirstChildOfClass("Humanoid") and obj\:FindFirstChild("HumanoidRootPart") then
-local highlight = obj\:FindFirstChildOfClass("Highlight")
+
+for _, obj in pairs(workspace:GetDescendants()) do
+
+if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+
+local highlight = obj:FindFirstChildOfClass("Highlight")
+
 if state then
+
 if not highlight then
+
 local h = Instance.new("Highlight", obj)
+
 h.FillColor = Color3.new(1, 0, 0)
+
 h.OutlineColor = Color3.new(1, 1, 1)
+
 end
+
 else
-if highlight then highlight\:Destroy() end
-end
-end
-end
+
+if highlight then highlight:Destroy() end
+
 end
 
-\-- GUI
-local gui = Instance.new("ScreenGui", player\:WaitForChild("PlayerGui"))
+end
+
+end
+
+end
+-- GUI
+
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+
 gui.ResetOnSpawn = false
+-- Rainbow Title
 
-\-- Rainbow Title
 local title = Instance.new("TextLabel", gui)
-title.Size = UDim2.new(0, 250, 0, 35)
-title.Position = UDim2.new(0, 10, 0, 10)
-title.BackgroundTransparency = 1
-title.Text = "Script by: Long Dzz"
-title.Font = Enum.Font.FredokaOne
-title.TextScaled = true
-title.TextColor3 = Color3.new(1, 1, 1)
 
+title.Size = UDim2.new(0, 250, 0, 35)
+
+title.Position = UDim2.new(0, 10, 0, 10)
+
+title.BackgroundTransparency = 1
+
+title.Text = "Script by: Long Dzz"
+
+title.Font = Enum.Font.FredokaOne
+
+title.TextScaled = true
+
+title.TextColor3 = Color3.new(1, 1, 1)
 task.spawn(function()
+
 while true do
+
 local t = tick()
+
 title.TextColor3 = Color3.fromRGB(
-math.floor(math.abs(math.sin(t)) \* 255),
-math.floor(math.abs(math.sin(t + 2)) \* 255),
-math.floor(math.abs(math.sin(t + 4)) \* 255)
+
+math.floor(math.abs(math.sin(t)) * 255),
+
+math.floor(math.abs(math.sin(t + 2)) * 255),
+
+math.floor(math.abs(math.sin(t + 4)) * 255)
+
 )
+
 task.wait(0.1)
+
 end
+
 end)
 
-\-- Button Generator
-local function createToggle(name, pos, color, callback)
-local btn = Instance.new("TextButton", gui)
-btn.Size = UDim2.new(0, 140, 0, 40)
-btn.Position = pos
-btn.Text = name
-btn.Font = Enum.Font.GothamBold
-btn.TextSize = 14
-btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-btn.BorderSizePixel = 0
+-- Frame chứa các nút chức năng
+local functionFrame = Instance.new("Frame", gui)
+functionFrame.Size = UDim2.new(0, 260, 0, 255)
+functionFrame.Position = UDim2.new(0, 10, 0, 50)
+functionFrame.BackgroundTransparency = 1
+functionFrame.BorderSizePixel = 0
 
-```
+-- Button Generator (sử dụng functionFrame làm Parent)
+local function createToggle(name, pos, color, callback)
+
+local btn = Instance.new("TextButton", functionFrame) -- Thay đổi parent thành functionFrame
+
+btn.Size = UDim2.new(0, 120, 0, 40) -- Điều chỉnh kích thước nút nếu cần
+btn.Position = pos
+
+btn.Text = name
+
+btn.Font = Enum.Font.GothamBold
+
+btn.TextSize = 14
+
+btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+
+btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+
+btn.BorderSizePixel = 0
 local state = false
 btn.MouseButton1Click:Connect(function()
     state = not state
     TweenService:Create(btn, TweenInfo.new(0.3), {BackgroundColor3 = state and color or Color3.fromRGB(40, 40, 40)}):Play()
     callback(state)
 end)
-```
-
 end
 
-\-- Add GUI toggles
-createToggle("Đánh nhanh", UDim2.new(0, 10, 0, 60), Color3.fromRGB(0, 255, 0), function(s) FastAttack = s end)
-createToggle("Đánh tầm xa", UDim2.new(0, 10, 0, 110), Color3.fromRGB(0, 170, 255), function(s) AoEEnabled = s end)
-createToggle("Aim gần nhất", UDim2.new(0, 10, 0, 160), Color3.fromRGB(255, 170, 0), function(s) AimEnabled = s end)
-createToggle("Tăng tốc x2", UDim2.new(0, 160, 0, 60), Color3.fromRGB(255, 0, 255), function(s) SpeedEnabled = s updateSpeed() end)
-createToggle("Xuyên tường", UDim2.new(0, 160, 0, 110), Color3.fromRGB(255, 255, 0), function(s) NoClipEnabled = s end)
-createToggle("Bay", UDim2.new(0, 160, 0, 160), Color3.fromRGB(0, 255, 255), function(s) FlyEnabled = s toggleFly(s) end)
-createToggle("Hiện quái", UDim2.new(0, 160, 0, 210), Color3.fromRGB(255, 0, 0), function(s) ESPEnabled = s toggleESP(s) end)
+-- Nút bật tắt menu
+local toggleMenuButton = Instance.new("TextButton", gui)
+toggleMenuButton.Size = UDim2.new(0, 100, 0, 30)
+toggleMenuButton.Position = UDim2.new(0, 270, 0, 15)
+toggleMenuButton.Text = "Bật/Tắt Menu"
+toggleMenuButton.Font = Enum.Font.GothamBold
+toggleMenuButton.TextSize = 12
+toggleMenuButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+toggleMenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleMenuButton.BorderSizePixel = 0
+
+toggleMenuButton.MouseButton1Click:Connect(function()
+    menuVisible = not menuVisible
+    functionFrame.Visible = menuVisible
+end)
+
+-- Add GUI toggles (với vị trí đã được điều chỉnh cho Frame)
+createToggle("Đánh nhanh", UDim2.new(0, 10, 0, 10), Color3.fromRGB(0, 255, 0), function(s) FastAttack = s end)
+
+createToggle("Đánh tầm xa", UDim2.new(0, 10, 0, 60), Color3.fromRGB(0, 170, 255), function(s) AoEEnabled = s end)
+
+createToggle("Aim gần nhất", UDim2.new(0, 10, 0, 110), Color3.fromRGB(255, 170, 0), function(s) AimEnabled = s end)
+
+createToggle("Tăng tốc x2", UDim2.new(0, 130, 0, 10), Color3.fromRGB(255, 0, 255), function(s) SpeedEnabled = s updateSpeed() end)
+
+createToggle("Xuyên tường", UDim2.new(0, 130, 0, 60), Color3.fromRGB(255, 255, 0), function(s) NoClipEnabled = s end)
+
+createToggle("Bay", UDim2.new(0, 130, 0, 110), Color3.fromRGB(0, 255, 255), function(s) FlyEnabled = s toggleFly(s) end)
+
+createToggle("Hiện quái", UDim2.new(0, 10, 0, 160), Color3.fromRGB(255, 0, 0), function(s) ESPEnabled = s toggleESP(s) end)
 
 print("✅ Script RangedTool đã load hoàn tất!")
-
