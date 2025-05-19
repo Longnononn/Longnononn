@@ -1,6 +1,7 @@
--- Script by Long Dzz - All in one Fluxus compatible
+-- Script by Long Dzz - Client-side features for Fluxus
 
--- Auto Create RemoteEvent + Server-side + Client-side GUI/Tool features
+-- Chỉ tập trung vào các tính năng chạy ở phía máy khách
+
 --// SERVICES
 
 local Players = game:GetService("Players")
@@ -13,286 +14,174 @@ local UIS = game:GetService("UserInputService")
 
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
---// CONFIG
+--// CONFIG (Client-side)
 
-local ATTACK_RADIUS = 25
-
-local DAMAGE = 25
-
-local FAST_COOLDOWN = 0.1
-
-local NORMAL_COOLDOWN = 0.5
---// REMOTE SETUP
+local ATTACK_RADIUS = 25 -- Chỉ sử dụng cho logic tìm mục tiêu gần nhất ở client
+--// REMOTE SETUP (Client-side)
 
 local attackEvent = ReplicatedStorage:FindFirstChild("RangedAttackEvent")
 
 if not attackEvent then
-
-attackEvent = Instance.new("RemoteEvent", ReplicatedStorage)
-
-attackEvent.Name = "RangedAttackEvent"
-
+    attackEvent = Instance.new("RemoteEvent", ReplicatedStorage)
+    attackEvent.Name = "RangedAttackEvent"
 end
---// SERVER FUNCTION
 
-if not getgenv()._hookedServer then
-
-getgenv()._hookedServer = true
-local lastAttack = {}
-
-attackEvent.OnServerEvent:Connect(function(plr, targetPosition) -- 'player' đổi thành 'plr' cho tương thích
-    local now = tick()
-    if lastAttack[plr] and now - lastAttack[plr] < FAST_COOLDOWN then return end
-    lastAttack[plr] = now
-
-    local char = plr.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local root = char.HumanoidRootPart
-
-    if (targetPosition - root.Position).Magnitude > 50 then return end
-
-    local params = OverlapParams.new()
-    params.FilterDescendantsInstances = {char}
-    params.FilterType = Enum.RaycastFilterType.Exclude
-
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(targetPosition), Vector3.new(ATTACK_RADIUS*2, ATTACK_RADIUS*2, ATTACK_RADIUS*2), params)
-
-    for _, part in pairs(parts) do
-        local model = part:FindFirstAncestorOfClass("Model")
-        if model and model ~= char then
-            local hum = model:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health > 0 then
-                hum:TakeDamage(DAMAGE)
-            end
-        end
-    end
-end)
-end
 --// CLIENT SCRIPT
 
 local FastAttack, AoEEnabled, AimEnabled, SpeedEnabled, NoClipEnabled, FlyEnabled, ESPEnabled = false, false, false, false, false, false, false
 local menuVisible = true -- Biến theo dõi trạng thái menu
 local canAttack = true
 local function getNearestTarget()
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local closest, dist = nil, math.huge
+    for _, model in pairs(workspace:GetDescendants()) do
+        if model:IsA("Model") and model ~= char then
+            local hum = model:FindFirstChildOfClass("Humanoid")
+            local hrp = model:FindFirstChild("HumanoidRootPart")
+            if hum and hum.Health > 0 and hrp then
+                local d = (hrp.Position - root.Position).Magnitude
+                if d < ATTACK_RADIUS and d < dist then
+                    dist = d
+                    closest = hrp
+                end
+            end
+        end
+    end
+    return closest
+end
 
-local char = player.Character
+local function attack()
+    if not AoEEnabled or not canAttack then return end
+    canAttack = false
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
 
-if not char then return end
+    local targetPos = root.Position
+    if AimEnabled then
+        local target = getNearestTarget()
+        if target then
+            targetPos = target.Position
+        end
+    end
 
-local root = char:FindFirstChild("HumanoidRootPart")
+    -- Gửi yêu cầu tấn công đến máy chủ
+    if attackEvent then
+        attackEvent:FireServer(targetPos)
+    end
+    task.wait(FastAttack and FAST_COOLDOWN or NORMAL_COOLDOWN)
+    canAttack = true
+end
 
-if not root then return end
-local closest, dist = nil, math.huge
+-- Tool auto fire on activation
+local tool = Instance.new("Tool", player.Backpack)
+tool.RequiresHandle = false
+tool.Name = "RangedTool"
+tool.Activated:Connect(attack)
+UIS.TouchTap:Connect(function(_, gp)
+    if not gp and tool.Parent == player.Character then
+        tool:Activate()
+    end
+end)
 
-for _, model in pairs(workspace:GetDescendants()) do
-    if model:IsA("Model") and model ~= char then
-        local hum = model:FindFirstChildOfClass("Humanoid")
-        local hrp = model:FindFirstChild("HumanoidRootPart")
-        if hum and hum.Health > 0 and hrp then
-            local d = (hrp.Position - root.Position).Magnitude
-            if d < ATTACK_RADIUS and d < dist then
-                dist = d
-                closest = hrp
+-- Speed
+local function updateSpeed()
+    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.WalkSpeed = SpeedEnabled and 32 or 16
+    end
+end
+player.CharacterAdded:Connect(updateSpeed)
+
+-- NoClip
+RunService.Stepped:Connect(function()
+    if NoClipEnabled then
+        local char = player.Character
+        if char then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+-- Fly
+local flyBodyGyro, flyBodyVelocity
+local function toggleFly(state)
+    local char = player.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    if state then
+        flyBodyGyro = Instance.new("BodyGyro", hrp)
+        flyBodyGyro.P = 9e4
+        flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        flyBodyGyro.CFrame = hrp.CFrame
+
+        flyBodyVelocity = Instance.new("BodyVelocity", hrp)
+        flyBodyVelocity.Velocity = Vector3.zero
+        flyBodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    else
+        if flyBodyGyro then flyBodyGyro:Destroy() end
+        if flyBodyVelocity then flyBodyVelocity:Destroy() end
+    end
+end
+RunService.RenderStepped:Connect(function()
+    if FlyEnabled and flyBodyVelocity and UIS:IsKeyDown(Enum.KeyCode.Space) then
+        flyBodyVelocity.Velocity = Vector3.new(0, 50, 0)
+    elseif FlyEnabled and flyBodyVelocity then
+        flyBodyVelocity.Velocity = Vector3.zero
+    end
+end)
+
+-- ESP
+local function toggleESP(state)
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+            local highlight = obj:FindFirstChildOfClass("Highlight")
+            if state then
+                if not highlight then
+                    local h = Instance.new("Highlight", obj)
+                    h.FillColor = Color3.new(1, 0, 0)
+                    h.OutlineColor = Color3.new(1, 1, 1)
+                end
+            else
+                if highlight then highlight:Destroy() end
             end
         end
     end
 end
-return closest
-end
-local function attack()
 
-if not AoEEnabled or not canAttack then return end
-
-canAttack = false
-local char = player.Character
-if not char then return end
-local root = char:FindFirstChild("HumanoidRootPart")
-if not root then return end
-
-local targetPos = root.Position
-if AimEnabled then
-    local target = getNearestTarget()
-    if target then
-        targetPos = target.Position
-    end
-end
-
-attackEvent:FireServer(targetPos)
-task.wait(FastAttack and FAST_COOLDOWN or NORMAL_COOLDOWN)
-canAttack = true
-end
--- Tool auto fire on activation
-
-local tool = Instance.new("Tool", player.Backpack)
-
-tool.RequiresHandle = false
-
-tool.Name = "RangedTool"
-
-tool.Activated:Connect(attack)
-UIS.TouchTap:Connect(function(_, gp)
-
-if not gp and tool.Parent == player.Character then
-
-tool:Activate()
-
-end
-
-end)
--- Speed
-
-local function updateSpeed()
-
-local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-
-if hum then
-
-hum.WalkSpeed = SpeedEnabled and 32 or 16
-
-end
-
-end
-player.CharacterAdded:Connect(updateSpeed)
--- NoClip
-
-RunService.Stepped:Connect(function()
-
-if NoClipEnabled then
-
-local char = player.Character
-
-if char then
-
-for _, part in pairs(char:GetDescendants()) do
-
-if part:IsA("BasePart") then
-
-part.CanCollide = false
-
-end
-
-end
-
-end
-
-end
-
-end)
--- Fly
-
-local flyBodyGyro, flyBodyVelocity
-
-local function toggleFly(state)
-
-local char = player.Character
-
-if not char then return end
-
-local hrp = char:FindFirstChild("HumanoidRootPart")
-
-if not hrp then return end
-if state then
-    flyBodyGyro = Instance.new("BodyGyro", hrp)
-    flyBodyGyro.P = 9e4
-    flyBodyGyro.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-    flyBodyGyro.CFrame = hrp.CFrame
-
-    flyBodyVelocity = Instance.new("BodyVelocity", hrp)
-    flyBodyVelocity.Velocity = Vector3.zero
-    flyBodyVelocity.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-else
-    if flyBodyGyro then flyBodyGyro:Destroy() end
-    if flyBodyVelocity then flyBodyVelocity:Destroy() end
-end
-end
-RunService.RenderStepped:Connect(function()
-
-if FlyEnabled and flyBodyVelocity and UIS:IsKeyDown(Enum.KeyCode.Space) then
-
-flyBodyVelocity.Velocity = Vector3.new(0, 50, 0)
-
-elseif FlyEnabled and flyBodyVelocity then
-
-flyBodyVelocity.Velocity = Vector3.zero
-
-end
-
-end)
--- ESP
-
-local function toggleESP(state)
-
-for _, obj in pairs(workspace:GetDescendants()) do
-
-if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
-
-local highlight = obj:FindFirstChildOfClass("Highlight")
-
-if state then
-
-if not highlight then
-
-local h = Instance.new("Highlight", obj)
-
-h.FillColor = Color3.new(1, 0, 0)
-
-h.OutlineColor = Color3.new(1, 1, 1)
-
-end
-
-else
-
-if highlight then highlight:Destroy() end
-
-end
-
-end
-
-end
-
-end
 -- GUI
 
 local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-
 gui.ResetOnSpawn = false
+
 -- Rainbow Title
-
 local title = Instance.new("TextLabel", gui)
-
 title.Size = UDim2.new(0, 250, 0, 35)
-
 title.Position = UDim2.new(0, 10, 0, 10)
-
 title.BackgroundTransparency = 1
-
-title.Text = "Script by: Long Dzz (Fluxus)" -- Đánh dấu là phiên bản Fluxus
-
+title.Text = "Script by: Long Dzz (Client)" -- Đánh dấu rõ ràng là client-side
 title.Font = Enum.Font.FredokaOne
-
 title.TextScaled = true
-
 title.TextColor3 = Color3.new(1, 1, 1)
 task.spawn(function()
-
-while true do
-
-local t = tick()
-
-title.TextColor3 = Color3.fromRGB(
-
-math.floor(math.abs(math.sin(t)) * 255),
-
-math.floor(math.abs(math.sin(t + 2)) * 255),
-
-math.floor(math.abs(math.sin(t + 4)) * 255)
-
-)
-
-task.wait(0.1)
-
-end
-
+    while true do
+        local t = tick()
+        title.TextColor3 = Color3.fromRGB(
+            math.floor(math.abs(math.sin(t)) * 255),
+            math.floor(math.abs(math.sin(t + 2)) * 255),
+            math.floor(math.abs(math.sin(t + 4)) * 255)
+        )
+        task.wait(0.1)
+    end
 end)
 
 -- Frame chứa các nút chức năng
@@ -304,29 +193,21 @@ functionFrame.BorderSizePixel = 0
 
 -- Button Generator (sử dụng functionFrame làm Parent)
 local function createToggle(name, pos, color, callback)
-
-local btn = Instance.new("TextButton", functionFrame) -- Thay đổi parent thành functionFrame
-
-btn.Size = UDim2.new(0, 120, 0, 40) -- Điều chỉnh kích thước nút nếu cần
-btn.Position = pos
-
-btn.Text = name
-
-btn.Font = Enum.Font.GothamBold
-
-btn.TextSize = 14
-
-btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-
-btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-btn.BorderSizePixel = 0
-local state = false
-btn.MouseButton1Click:Connect(function()
-    state = not state
-    TweenService:Create(btn, TweenInfo.new(0.3), {BackgroundColor3 = state and color or Color3.fromRGB(40, 40, 40)}):Play()
-    callback(state)
-end)
+    local btn = Instance.new("TextButton", functionFrame) -- Thay đổi parent thành functionFrame
+    btn.Size = UDim2.new(0, 120, 0, 40) -- Điều chỉnh kích thước nút nếu cần
+    btn.Position = pos
+    btn.Text = name
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 14
+    btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BorderSizePixel = 0
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        TweenService:Create(btn, TweenInfo.new(0.3), {BackgroundColor3 = state and color or Color3.fromRGB(40, 40, 40)}):Play()
+        callback(state)
+    end)
 end
 
 -- Nút bật tắt menu
@@ -347,17 +228,11 @@ end)
 
 -- Add GUI toggles (với vị trí đã được điều chỉnh cho Frame)
 createToggle("Đánh nhanh", UDim2.new(0, 10, 0, 10), Color3.fromRGB(0, 255, 0), function(s) FastAttack = s end)
-
 createToggle("Đánh tầm xa", UDim2.new(0, 10, 0, 60), Color3.fromRGB(0, 170, 255), function(s) AoEEnabled = s end)
-
 createToggle("Aim gần nhất", UDim2.new(0, 10, 0, 110), Color3.fromRGB(255, 170, 0), function(s) AimEnabled = s end)
-
 createToggle("Tăng tốc x2", UDim2.new(0, 130, 0, 10), Color3.fromRGB(255, 0, 255), function(s) SpeedEnabled = s updateSpeed() end)
-
 createToggle("Xuyên tường", UDim2.new(0, 130, 0, 60), Color3.fromRGB(255, 255, 0), function(s) NoClipEnabled = s end)
-
 createToggle("Bay", UDim2.new(0, 130, 0, 110), Color3.fromRGB(0, 255, 255), function(s) FlyEnabled = s toggleFly(s) end)
-
 createToggle("Hiện quái", UDim2.new(0, 10, 0, 160), Color3.fromRGB(255, 0, 0), function(s) ESPEnabled = s toggleESP(s) end)
 
-print("✅ Script RangedTool đã load hoàn tất (executor)! ")
+print("✅ Client-side script loaded for Fluxus!")
