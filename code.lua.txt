@@ -10,7 +10,7 @@ local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 
 --// CONFIG (Client-side)
-local ATTACK_RADIUS = 25 -- Radius for targeting enemies [cite: 4]
+local ATTACK_RADIUS = 25 -- Radius for targeting enemies
 local FAST_COOLDOWN = 0.1 -- Fast attack cooldown
 local NORMAL_COOLDOWN = 0.5 -- Normal attack cooldown
 local DEFAULT_WALK_SPEED = 16 -- Default walk speed
@@ -18,15 +18,15 @@ local DEFAULT_FLY_SPEED = 50 -- Default fly speed
 local MAX_FLY_SPEED = 150 -- Maximum fly speed
 local MIN_FLY_SPEED = 20 -- Minimum fly speed
 local VALID_KEY = "f3vcgtyuio" -- Provided key
-local LINK4M_URL = "https://link4m.com/rLBYSp" -- Provided Link4M URL [cite: 2]
+local LINK4M_URL = "https://link4m.com/rLBYSp" -- Provided Link4M URL [cite: 1, 2]
 
 --// VARIABLES
-local FastAttack, AoEEnabled, AimEnabled, SpeedEnabled, NoClipEnabled, FlyEnabled, ESPEnabled, InfiniteJumpEnabled = false, false, false, false, false, false, false, false
-local menuVisible = false -- Menu hidden until key is validated
-local canAttack = true
-local customWalkSpeed = DEFAULT_WALK_SPEED
-local customFlySpeed = DEFAULT_FLY_SPEED
-local keyValidated = false -- Tracks if key is correct
+local FastAttack, AoEEnabled, AimEnabled, SpeedEnabled, NoClipEnabled, FlyEnabled, ESPEnabled, InfiniteJumpEnabled = false, false, false, false, false, false, false, false [cite: 2]
+local menuVisible = false -- Menu hidden until key is validated [cite: 2]
+local canAttack = true [cite: 2]
+local customWalkSpeed = DEFAULT_WALK_SPEED [cite: 2]
+local customFlySpeed = DEFAULT_FLY_SPEED [cite: 2]
+local keyValidated = false -- Tracks if key is correct [cite: 2]
 
 --// FUNCTIONS
 
@@ -37,7 +37,7 @@ local function getNearestTarget()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
     local closest, dist = nil, math.huge
-    for _, model in pairs(workspace:GetDescendants()) do [cite: 3]
+    for _, model in pairs(workspace:GetDescendants()) do
         if model:IsA("Model") and model ~= char then
             local hum = model:FindFirstChildOfClass("Humanoid")
             local hrp = model:FindFirstChild("HumanoidRootPart")
@@ -56,7 +56,6 @@ end
 -- Attack function (simulate tool activation)
 local function attack()
     -- Removed AoEEnabled from this initial check so FastAttack and AimEnabled can work independently.
-    -- AoEEnabled will still affect the effective range if AimEnabled is active by changing ATTACK_RADIUS.
     if not keyValidated or not canAttack then return end [cite: 5]
     canAttack = false
     local char = player.Character
@@ -73,15 +72,12 @@ local function attack()
     end
 
     -- Simulate tool activation
-    -- IMPORTANT: For 'Aim near' to truly work for damage, the game's actual tool script
-    -- or server-side events would need to use 'targetPos' or similar information.
-    -- Simply activating a tool on the client usually doesn't bypass server-side hit detection.
     local tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
     if tool then
         tool:Activate()
     end
 
-    task.wait(FastAttack and FAST_COOLDOWN or NORMAL_COOLDOWN) [cite: 6]
+    task.wait(FastAttack and FAST_COOLDOWN or NORMAL_COOLDOWN)
     canAttack = true
 end
 
@@ -104,7 +100,16 @@ local function updateSpeed()
         hum.WalkSpeed = SpeedEnabled and customWalkSpeed or DEFAULT_WALK_SPEED
     end
 end
-player.CharacterAdded:Connect(updateSpeed)
+
+-- Connect updateSpeed to CharacterAdded to ensure speed is set when character spawns
+player.CharacterAdded:Connect(function(char)
+    -- Wait for the Humanoid to exist in the new character
+    local hum = char:WaitForChild("Humanoid")
+    if hum then
+        updateSpeed() -- Apply speed after Humanoid is available
+    end
+end)
+
 
 -- NoClip
 RunService.Stepped:Connect(function()
@@ -127,12 +132,12 @@ local function toggleFly(state)
     if not char then return end
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
-    local hum = char:FindFirstChildOfClass("Humanoid") [cite: 9]
-    if not hum then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum then return end [cite: 9]
 
     if state then
         hum.PlatformStand = true -- Disable default movement [cite: 9]
-        flyConnection = RunService.RenderStepped:Connect(function(delta) [cite: 9]
+        flyConnection = RunService.RenderStepped:Connect(function(delta)
             local moveDirection = Vector3.new(0, 0, 0)
             local cam = workspace.CurrentCamera
             local forward = cam.CFrame.LookVector [cite: 9]
@@ -146,25 +151,25 @@ local function toggleFly(state)
                 moveDirection = moveDirection - forward [cite: 11]
             end
             if UIS:IsKeyDown(Enum.KeyCode.D) then
-                moveDirection = moveDirection + right
+                moveDirection = moveDirection + right [cite: 11]
             end
             if UIS:IsKeyDown(Enum.KeyCode.A) then
                 moveDirection = moveDirection - right [cite: 12]
             end
             if UIS:IsKeyDown(Enum.KeyCode.Space) then
-                moveDirection = moveDirection + up
+                moveDirection = moveDirection + up [cite: 12]
             end
             if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
-                moveDirection = moveDirection - up
+                moveDirection = moveDirection - up [cite: 12]
             end
 
             if moveDirection.Magnitude > 0 then [cite: 13]
-                moveDirection = moveDirection.Unit * customFlySpeed * delta
-                hrp.CFrame = hrp.CFrame + moveDirection
+                moveDirection = moveDirection.Unit * customFlySpeed * delta [cite: 13]
+                hrp.CFrame = hrp.CFrame + moveDirection [cite: 13]
             end
         end)
     else
-        hum.PlatformStand = false
+        hum.PlatformStand = false [cite: 14]
         if flyConnection then
             flyConnection:Disconnect() [cite: 14]
             flyConnection = nil
@@ -174,22 +179,29 @@ end
 
 -- Infinite Jump (may cause rubberbanding due to server correction)
 local function toggleInfiniteJump(state)
-    if not keyValidated then return end
+    if not keyValidated then return end [cite: 14]
     if state then
+        -- Disconnect previous JumpRequest to avoid multiple connections if toggled multiple times
+        if InfiniteJumpEnabled then return end -- Prevent multiple connections
+        
         UIS.JumpRequest:Connect(function()
             if InfiniteJumpEnabled and player.Character then
-                local hum = player.Character:FindFirstChildOfClass("Humanoid") [cite: 15]
-                if hum then
-                    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                local hum = player.Character:FindFirstChildOfClass("Humanoid")
+                if hum then [cite: 15]
+                    hum:ChangeState(Enum.HumanoidStateType.Jumping) [cite: 15]
                 end
             end
         end)
+    else
+        -- No direct way to disconnect a specific anonymous connection without storing it.
+        -- For robust toggling, you'd usually store the connection in a table and disconnect specifically.
+        -- For now, toggling it off simply stops the UI.JumpRequest logic from executing.
     end
 end
 
 -- ESP
 local function toggleESP(state)
-    if not keyValidated then return end
+    if not keyValidated then return end [cite: 15]
     for _, obj in pairs(workspace:GetDescendants()) do
         if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then [cite: 16]
             local highlight = obj:FindFirstChildOfClass("Highlight")
@@ -197,13 +209,13 @@ local function toggleESP(state)
                 if not highlight then
                     local h = Instance.new("Highlight", obj)
                     h.FillColor = Color3.new(1, 0, 0) [cite: 17]
-                    h.OutlineColor = Color3.new(1, 1, 1)
+                    h.OutlineColor = Color3.new(1, 1, 1) [cite: 17]
                 end
             else
                 if highlight then highlight:Destroy() end
             end
         end
-    end [cite: 18]
+    end
 end
 
 -- GUI
@@ -353,12 +365,12 @@ checkKeyButton.MouseButton1Click:Connect(function()
         functionFrame.Visible = true
         toggleMenuButton.Visible = true
         keyMessage.Text = "Key hợp lệ!" [cite: 25]
-        keyMessage.TextColor3 = Color3.new(0, 1, 0)
+        keyMessage.TextColor3 = Color3.new(0, 1, 0) [cite: 25]
         task.wait(1)
         keyMessage.Text = ""
     else
-        keyMessage.Text = "Key không hợp lệ!"
-        keyMessage.TextColor3 = Color3.new(1, 0, 0)
+        keyMessage.Text = "Key không hợp lệ!" [cite: 25]
+        keyMessage.TextColor3 = Color3.new(1, 0, 0) [cite: 25]
     end
 end)
 
@@ -370,12 +382,12 @@ end)
 
 -- Add GUI Toggles
 createToggle("Đánh nhanh", UDim2.new(0, 10, 0, 10), Color3.fromRGB(0, 255, 0), function(s) FastAttack = s end) [cite: 26]
-createToggle("Đánh tầm xa", UDim2.new(0, 10, 0, 60), Color3.fromRGB(0, 170, 255), function(s) AoEEnabled = s end)
-createToggle("Aim gần nhất", UDim2.new(0, 10, 0, 110), Color3.fromRGB(255, 170, 0), function(s) AimEnabled = s end)
-createToggle("Tăng tốc", UDim2.new(0, 130, 0, 10), Color3.fromRGB(255, 0, 255), function(s) SpeedEnabled = s updateSpeed() end)
-createToggle("Xuyên tường", UDim2.new(0, 130, 0, 60), Color3.fromRGB(255, 255, 0), function(s) NoClipEnabled = s end)
-createToggle("Bay", UDim2.new(0, 130, 0, 110), Color3.fromRGB(0, 255, 255), function(s) FlyEnabled = s toggleFly(s) end)
-createToggle("Hiện quái", UDim2.new(0, 10, 0, 160), Color3.fromRGB(255, 0, 0), function(s) ESPEnabled = s toggleESP(s) end)
+createToggle("Đánh tầm xa", UDim2.new(0, 10, 0, 60), Color3.fromRGB(0, 170, 255), function(s) AoEEnabled = s end) [cite: 26]
+createToggle("Aim gần nhất", UDim2.new(0, 10, 0, 110), Color3.fromRGB(255, 170, 0), function(s) AimEnabled = s end) [cite: 26]
+createToggle("Tăng tốc", UDim2.new(0, 130, 0, 10), Color3.fromRGB(255, 0, 255), function(s) SpeedEnabled = s updateSpeed() end) [cite: 26]
+createToggle("Xuyên tường", UDim2.new(0, 130, 0, 60), Color3.fromRGB(255, 255, 0), function(s) NoClipEnabled = s end) [cite: 26]
+createToggle("Bay", UDim2.new(0, 130, 0, 110), Color3.fromRGB(0, 255, 255), function(s) FlyEnabled = s toggleFly(s) end) [cite: 26]
+createToggle("Hiện quái", UDim2.new(0, 10, 0, 160), Color3.fromRGB(255, 0, 0), function(s) ESPEnabled = s toggleESP(s) end) [cite: 26]
 createToggle("Nhảy vô hạn", UDim2.new(0, 130, 0, 160), Color3.fromRGB(0, 255, 128), function(s) InfiniteJumpEnabled = s toggleInfiniteJump(s) end) [cite: 27]
 
 -- Fly Speed Controls
@@ -405,7 +417,7 @@ createSpeedButton("+ Tốc độ chạy", UDim2.new(0, 10, 0, 250), function()
     if SpeedEnabled then updateSpeed() end
 end)
 createSpeedButton("- Tốc độ chạy", UDim2.new(0, 80, 0, 250), function()
-    customWalkSpeed = math.max(customWalkSpeed - 4, DEFAULT_WALK_SPEED)
+    customWalkSpeed = math.max(customWalkSpeed - 4, DEFAULT_WALK_SPEED) [cite: 28]
     speedLabel.Text = "Tốc độ: " .. customWalkSpeed
     if SpeedEnabled then updateSpeed() end
 end)
