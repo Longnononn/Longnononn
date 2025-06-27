@@ -1,9 +1,10 @@
-Certainly! Here's the complete, revised Lua script based on your previous code, incorporating the fixes and improvements discussed.
-This version addresses the toggleButton positioning, ensures the Auto Clicker runs in a non-blocking way using task.spawn, provides a definition for the click simulation, and refines the aimbot connection/disconnection.
 -- Tạo ScreenGui
-local screenGui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
+local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "HackMenu"
 screenGui.ResetOnSpawn = false
+
+-- Gán ScreenGui vào PlayerGui của người chơi
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
 -- Tạo Frame chính (Menu)
 local mainFrame = Instance.new("Frame", screenGui)
@@ -128,12 +129,7 @@ local function runAutoClicker()
                 -- Mô phỏng một cú nhấp chuột. Enum.UserInputType.MouseButton1 là chuột trái.
                 UserInputService:SimulateMouseClick(mouse.X, mouse.Y, Enum.UserInputType.MouseButton1)
 
-                -- Tốc độ nhấp chuột mặc định.
-                -- Nếu bạn có thanh trượt điều chỉnh tốc độ, hãy sử dụng giá trị của nó ở đây.
-                local clickDelay = 0.05
-                -- if clickSpeedSlider and clickSpeedSlider.Value then
-                --     clickDelay = clickSpeedSlider.Value
-                -- end
+                local clickDelay = 0.05 -- Tốc độ nhấp chuột mặc định
                 task.wait(clickDelay)
             end
         end)
@@ -182,14 +178,12 @@ local function runAimbot()
 
             if targetPart then
                 -- Aimbot này điều chỉnh camera của người chơi để nhìn vào mục tiêu.
-                -- Điều này có thể không di chuyển con trỏ chuột thực tế nhưng sẽ hướng tầm nhìn của bạn.
                 local targetPosition = targetPart.CFrame.Position
                 local currentCameraCFrame = game.Workspace.CurrentCamera.CFrame
                 local newCFrame = CFrame.new(currentCameraCFrame.Position, targetPosition)
                 game.Workspace.CurrentCamera.CFrame = currentCameraCFrame:Lerp(newCFrame, smoothingFactor)
-                
-                -- Nếu bạn muốn ảnh hưởng đến mouse.Hit (ví dụ cho các script phụ thuộc vào nó)
-                mouse.TargetFilter = targetPart -- Có thể giúp các công cụ nhận diện mục tiêu dễ hơn.
+
+                mouse.TargetFilter = targetPart 
             else
                 mouse.TargetFilter = nil -- Đặt lại TargetFilter khi không có mục tiêu
             end
@@ -219,12 +213,12 @@ end)
 -- Các tính năng nhanh
 createFastActionButton("Auto Clicker", 40, function(state)
     autoClickerActive = state
-    runAutoClicker() -- Hàm này giờ đây quản lý việc bắt đầu/dừng thread
+    runAutoClicker() 
 end)
 
 createFastActionButton("Aimbot", 90, function(state)
     aimbotActive = state
-    runAimbot() -- Hàm này giờ đây quản lý việc kết nối/ngắt kết nối sự kiện Heartbeat
+    runAimbot() 
 end)
 
 createFastActionButton("Enlarge Hitbox", 140, function(state)
@@ -243,16 +237,11 @@ createFastActionButton("Enlarge Hitbox", 140, function(state)
 
         if state then
             print("Enlarge Hitbox ON")
-            -- Ví dụ: Tăng kích thước Hitbox (HumanoidRootPart).
-            -- Cân nhắc thêm các phần vô hình lớn hơn nếu muốn hitbox rộng hơn nữa.
             humanoidRootPart.Size = originalSize * Vector3.new(1.5, 1.5, 1.5)
-            -- Cần cập nhật vị trí để nó không bị kẹt trong mặt đất
             humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, (humanoidRootPart.Size.Y - originalSize.Y) / 2, 0)
         else
             print("Enlarge Hitbox OFF")
-            -- Khôi phục kích thước ban đầu
             humanoidRootPart.Size = originalSize
-            -- Di chuyển lại vị trí ban đầu
             humanoidRootPart.CFrame = humanoidRootPart.CFrame - Vector3.new(0, (humanoidRootPart.Size.Y - originalSize.Y) / 2, 0)
         end
     end
@@ -269,78 +258,19 @@ createFastActionButton("Fly", 190, function(state)
         if state then
             print("Fly ON")
             humanoid.PlatformStand = true -- Ngăn rơi
-            -- Thêm BodyVelocity để di chuyển nhân vật lên và giữ ở trên không
+
             local bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.MaxForce = Vector3.new(0, humanoid.Mass * game.Workspace.Gravity * 2, 0) -- Đủ lực để bay lên
-            bodyVelocity.Velocity = Vector3.new(0, 0, 0) -- Ban đầu không di chuyển
+            bodyVelocity.MaxForce = Vector3.new(0, humanoid.Mass * game.Workspace.Gravity * 2, 0) 
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0) 
             bodyVelocity.Parent = rootPart
             bodyVelocity.Name = "FlyBodyVelocity"
-
-            -- Bạn có thể thêm các KeyCode Listener để di chuyển trong khi bay (ví dụ: W, A, S, D)
-            -- local flyConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            --     if gameProcessed then return end
-            --     if input.KeyCode == Enum.KeyCode.W then bodyVelocity.Velocity = rootPart.CFrame.LookVector * 50 end
-            --     -- ... các nút khác
-            -- end)
-            -- bodyVelocity:SetAttribute("FlyConnection", flyConnection) -- Lưu kết nối để ngắt sau
         else
             print("Fly OFF")
             humanoid.PlatformStand = false
-            -- Xóa BodyVelocity
             local bodyVelocity = rootPart:FindFirstChild("FlyBodyVelocity")
             if bodyVelocity then
                 bodyVelocity:Destroy()
             end
-            -- local flyConnection = bodyVelocity:GetAttribute("FlyConnection")
-            -- if flyConnection then flyConnection:Disconnect() end
         end
     end
 end)
-
--- (Tùy chọn) Thêm một thanh trượt để điều chỉnh tốc độ Auto Clicker
--- Để tạo thanh trượt, bạn sẽ cần thêm các UI element như Frame, TextLabel, và TextButton cho việc kéo.
--- Đây là một ví dụ giả định về cách bạn có thể tạo một thanh trượt:
---[[
-local function createSlider(name, yPosition, minValue, maxValue, defaultValue, callback)
-    local sliderFrame = Instance.new("Frame", mainFrame)
-    sliderFrame.Size = UDim2.new(1, -10, 0, 30)
-    sliderFrame.Position = UDim2.new(0, 5, 0, yPosition)
-    sliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    sliderFrame.BorderSizePixel = 0
-
-    local sliderLabel = Instance.new("TextLabel", sliderFrame)
-    sliderLabel.Size = UDim2.new(0.5, 0, 1, 0)
-    sliderLabel.Position = UDim2.new(0, 0, 0, 0)
-    sliderLabel.BackgroundTransparency = 1
-    sliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    sliderLabel.Font = Enum.Font.SourceSansBold
-    sliderLabel.TextSize = 14
-    sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-    sliderLabel.TextYAlignment = Enum.TextYAlignment.Center
-    sliderLabel.Text = name .. ": " .. string.format("%.2f", defaultValue)
-
-    local sliderButton = Instance.new("TextButton", sliderFrame)
-    sliderButton.Size = UDim2.new(0, 10, 1, 0)
-    sliderButton.Position = UDim2.new(defaultValue / (maxValue - minValue), 0, 0, 0) -- Vị trí ban đầu
-    sliderButton.BackgroundColor3 = Color3.fromRGB(80, 80, 255)
-    sliderButton.BorderSizePixel = 0
-    sliderButton.Draggable = true
-
-    local currentValue = defaultValue
-    sliderButton.DraggableChanged:Connect(function()
-        local xPos = sliderButton.Position.X.Scale
-        currentValue = minValue + (maxValue - minValue) * xPos
-        sliderLabel.Text = name .. ": " .. string.format("%.2f", currentValue)
-        callback(currentValue)
-    end)
-    return {Value = currentValue, SliderLabel = sliderLabel} -- Trả về bảng có giá trị và nhãn
-end
-
-local clickSpeedSlider = createSlider("Click Speed", 240, 0.01, 0.5, 0.05, function(value)
-    print("Click Speed set to: " .. value)
-    -- Bạn sẽ cần một biến toàn cục hoặc cách để Auto Clicker truy cập giá trị này.
-    -- Ví dụ: globalClickSpeed = value
-end)
--- Và sau đó trong runAutoClicker, sử dụng clickSpeedSlider.Value
-]]
-
