@@ -56,20 +56,21 @@ toggleButtonLabel.TextYAlignment = Enum.TextYAlignment.Center
 
 -- Tween Animation cho Menu
 local TweenService = game:GetService("TweenService")
-local menuTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out) -- Giảm thời gian tween cho mượt hơn
+local menuTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 -- Biến trạng thái cho các chức năng
 local autoClickerActive = false
 local aimbotActive = false
 local enlargeHitboxActive = false
-local flying = false -- Biến trạng thái cho Fly
+local flying = false
 
 -- Tham chiếu toàn cục cho thread Auto Clicker
 local autoClickerThread = nil
-local heartbeatConnection = nil -- Khởi tạo bên ngoài để quản lý trạng thái kết nối Aimbot
+local heartbeatConnection = nil
 
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
 -- Hàm tạo các chức năng bật nhanh
 local function createFastActionButton(name, yPosition, callback)
@@ -121,20 +122,17 @@ end
 
 -- Hàm Auto Clicker
 local function runAutoClicker()
-    local mouse = game.Players.LocalPlayer:GetMouse()
+    local mouse = Players.LocalPlayer:GetMouse()
     if autoClickerActive then
         -- Chạy trong một thread riêng để không chặn UI
         autoClickerThread = task.spawn(function()
             while autoClickerActive do
-                -- Mô phỏng một cú nhấp chuột. Enum.UserInputType.MouseButton1 là chuột trái.
                 UserInputService:SimulateMouseClick(mouse.X, mouse.Y, Enum.UserInputType.MouseButton1)
-
-                local clickDelay = 0.05 -- Tốc độ nhấp chuột mặc định
+                local clickDelay = 0.05
                 task.wait(clickDelay)
             end
         end)
     elseif autoClickerThread then
-        -- Dừng thread nếu autoClickerActive là false
         task.cancel(autoClickerThread)
         autoClickerThread = nil
     end
@@ -142,25 +140,24 @@ end
 
 -- Hàm Aimbot
 local function runAimbot()
-    local player = game.Players.LocalPlayer
+    local player = Players.LocalPlayer
     local mouse = player:GetMouse()
     local smoothingFactor = 0.2
 
-    if aimbotActive and not heartbeatConnection then -- Chỉ kết nối nếu Aimbot đang bật và chưa có kết nối
+    if aimbotActive and not heartbeatConnection then
         heartbeatConnection = RunService.Heartbeat:Connect(function(deltaTime)
             local char = player.Character
             if not char or not char:FindFirstChild("HumanoidRootPart") then
-                return -- Thoát khỏi hàm nếu không tìm thấy nhân vật hoặc HumanoidRootPart
+                return
             end
 
             local closestPlayer = nil
             local closestDistance = math.huge
             local targetPart = nil
 
-            for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+            for _, otherPlayer in pairs(Players:GetPlayers()) do
                 if otherPlayer ~= player and otherPlayer.Character then
                     local targetChar = otherPlayer.Character
-                    -- Ưu tiên HumanoidRootPart, sau đó là Head nếu HumanoidRootPart không có
                     local humanoidRootPart = targetChar:FindFirstChild("HumanoidRootPart")
                     local head = targetChar:FindFirstChild("Head")
 
@@ -177,7 +174,6 @@ local function runAimbot()
             end
 
             if targetPart then
-                -- Aimbot này điều chỉnh camera của người chơi để nhìn vào mục tiêu.
                 local targetPosition = targetPart.CFrame.Position
                 local currentCameraCFrame = game.Workspace.CurrentCamera.CFrame
                 local newCFrame = CFrame.new(currentCameraCFrame.Position, targetPosition)
@@ -185,14 +181,13 @@ local function runAimbot()
 
                 mouse.TargetFilter = targetPart 
             else
-                mouse.TargetFilter = nil -- Đặt lại TargetFilter khi không có mục tiêu
+                mouse.TargetFilter = nil
             end
         end)
     elseif not aimbotActive and heartbeatConnection then
-        -- Ngắt kết nối Aimbot nếu nó không còn hoạt động
         heartbeatConnection:Disconnect()
         heartbeatConnection = nil
-        mouse.TargetFilter = nil -- Đặt lại TargetFilter khi Aimbot tắt
+        mouse.TargetFilter = nil
     end
 end
 
@@ -223,12 +218,11 @@ end)
 
 createFastActionButton("Enlarge Hitbox", 140, function(state)
     enlargeHitboxActive = state
-    local player = game.Players.LocalPlayer
+    local player = Players.LocalPlayer
     local character = player.Character
 
     if character and character:FindFirstChild("HumanoidRootPart") then
         local humanoidRootPart = character.HumanoidRootPart
-        -- Lưu kích thước gốc để khôi phục
         local originalSize = humanoidRootPart:GetAttribute("OriginalSize")
         if not originalSize then
             humanoidRootPart:SetAttribute("OriginalSize", humanoidRootPart.Size)
@@ -236,36 +230,32 @@ createFastActionButton("Enlarge Hitbox", 140, function(state)
         end
 
         if state then
-            print("Enlarge Hitbox ON")
             humanoidRootPart.Size = originalSize * Vector3.new(1.5, 1.5, 1.5)
             humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, (humanoidRootPart.Size.Y - originalSize.Y) / 2, 0)
         else
-            print("Enlarge Hitbox OFF")
-            humanoidRootPart.Size = originalSize
             humanoidRootPart.CFrame = humanoidRootPart.CFrame - Vector3.new(0, (humanoidRootPart.Size.Y - originalSize.Y) / 2, 0)
+            humanoidRootPart.Size = originalSize
         end
     end
 end)
 
 createFastActionButton("Fly", 190, function(state)
     flying = state
-    local player = game.Players.LocalPlayer
+    local player = Players.LocalPlayer
     local character = player.Character
     local humanoid = character and character:FindFirstChildOfClass("Humanoid")
     local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 
     if humanoid and rootPart then
         if state then
-            print("Fly ON")
-            humanoid.PlatformStand = true -- Ngăn rơi
+            humanoid.PlatformStand = true
 
             local bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.MaxForce = Vector3.new(0, humanoid.Mass * game.Workspace.Gravity * 2, 0) 
-            bodyVelocity.Velocity = Vector3.new(0, 0, 0) 
+            bodyVelocity.MaxForce = Vector3.new(0, humanoid.Mass * game.Workspace.Gravity * 2, 0)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
             bodyVelocity.Parent = rootPart
             bodyVelocity.Name = "FlyBodyVelocity"
         else
-            print("Fly OFF")
             humanoid.PlatformStand = false
             local bodyVelocity = rootPart:FindFirstChild("FlyBodyVelocity")
             if bodyVelocity then
