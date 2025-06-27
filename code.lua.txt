@@ -1,3 +1,5 @@
+Certainly! Here's the complete, revised Lua script based on your previous code, incorporating the fixes and improvements discussed.
+This version addresses the toggleButton positioning, ensures the Auto Clicker runs in a non-blocking way using task.spawn, provides a definition for the click simulation, and refines the aimbot connection/disconnection.
 -- Tạo ScreenGui
 local screenGui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
 screenGui.Name = "HackMenu"
@@ -6,12 +8,17 @@ screenGui.ResetOnSpawn = false
 -- Tạo Frame chính (Menu)
 local mainFrame = Instance.new("Frame", screenGui)
 mainFrame.Size = UDim2.new(0, 200, 0, 400) -- Tăng kích thước để chứa thêm slider
-mainFrame.Position = UDim2.new(0, 20, 0, 100)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
-mainFrame.Visible = true -- Đảm bảo menu luôn hiển thị lúc đầu
 mainFrame.Active = true
 mainFrame.Draggable = true
+
+-- Vị trí ban đầu cho menu khi ẩn (ngoài màn hình bên trái)
+local hiddenMenuPosition = UDim2.new(0, -mainFrame.Size.X.Offset, 0, 100)
+local visibleMenuPosition = UDim2.new(0, 20, 0, 100) -- Vị trí khi hiển thị
+
+mainFrame.Position = hiddenMenuPosition -- Bắt đầu ẩn
+mainFrame.Visible = false -- Bắt đầu với menu ẩn
 
 -- Tạo chữ "script by: Long Dzz" ở góc trên bên trái
 local titleLabel = Instance.new("TextLabel", mainFrame)
@@ -43,7 +50,7 @@ toggleButtonLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButtonLabel.Font = Enum.Font.SourceSansBold
 toggleButtonLabel.TextSize = 18
 toggleButtonLabel.Text = "☰"
-toggleButtonLabel.TextAlign = Enum.TextXAlignment.Center
+toggleButtonLabel.TextXAlignment = Enum.TextXAlignment.Center
 toggleButtonLabel.TextYAlignment = Enum.TextYAlignment.Center
 
 -- Tween Animation cho Menu
@@ -55,6 +62,13 @@ local autoClickerActive = false
 local aimbotActive = false
 local enlargeHitboxActive = false
 local flying = false -- Biến trạng thái cho Fly
+
+-- Tham chiếu toàn cục cho thread Auto Clicker
+local autoClickerThread = nil
+local heartbeatConnection = nil -- Khởi tạo bên ngoài để quản lý trạng thái kết nối Aimbot
+
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 -- Hàm tạo các chức năng bật nhanh
 local function createFastActionButton(name, yPosition, callback)
@@ -81,8 +95,8 @@ local function createFastActionButton(name, yPosition, callback)
     local button = Instance.new("TextButton", actionFrame)
     button.Size = UDim2.new(0, 60, 0, 20)
     button.Position = UDim2.new(1, -70, 0, 10)
-    button.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Màu xanh lá ban đầu (ON)
-    button.Text = "ON"
+    button.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Đỏ khi OFF ban đầu
+    button.Text = "OFF"
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.Font = Enum.Font.SourceSansBold
     button.TextSize = 14
@@ -93,12 +107,12 @@ local function createFastActionButton(name, yPosition, callback)
     button.MouseButton1Click:Connect(function()
         isActive = not isActive -- Đảo ngược trạng thái
         if isActive then
-            button.Text = "OFF"
-            button.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Đỏ khi OFF
-            callback(true) -- Kích hoạt chức năng
-        else
             button.Text = "ON"
             button.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Xanh lá khi ON
+            callback(true) -- Kích hoạt chức năng
+        else
+            button.Text = "OFF"
+            button.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Đỏ khi OFF
             callback(false) -- Tắt chức năng
         end
     end)
@@ -107,97 +121,226 @@ end
 -- Hàm Auto Clicker
 local function runAutoClicker()
     local mouse = game.Players.LocalPlayer:GetMouse()
-    while autoClickerActive do
-        mouse1click() -- Gọi sự kiện click chuột
-        wait(clickSpeedSlider.Value) -- Tốc độ click (có thể điều chỉnh)
+    if autoClickerActive then
+        -- Chạy trong một thread riêng để không chặn UI
+        autoClickerThread = task.spawn(function()
+            while autoClickerActive do
+                -- Mô phỏng một cú nhấp chuột. Enum.UserInputType.MouseButton1 là chuột trái.
+                UserInputService:SimulateMouseClick(mouse.X, mouse.Y, Enum.UserInputType.MouseButton1)
+
+                -- Tốc độ nhấp chuột mặc định.
+                -- Nếu bạn có thanh trượt điều chỉnh tốc độ, hãy sử dụng giá trị của nó ở đây.
+                local clickDelay = 0.05
+                -- if clickSpeedSlider and clickSpeedSlider.Value then
+                --     clickDelay = clickSpeedSlider.Value
+                -- end
+                task.wait(clickDelay)
+            end
+        end)
+    elseif autoClickerThread then
+        -- Dừng thread nếu autoClickerActive là false
+        task.cancel(autoClickerThread)
+        autoClickerThread = nil
     end
 end
 
 -- Hàm Aimbot
-local heartbeatConnection
-
 local function runAimbot()
     local player = game.Players.LocalPlayer
     local mouse = player:GetMouse()
     local smoothingFactor = 0.2
 
-    heartbeatConnection = game:GetService("RunService").Heartbeat:Connect(function(deltaTime)
-        local char = player.Character
-        if not char or not char:FindFirstChild("HumanoidRootPart") then
-            return -- Thoát khỏi hàm nếu không tìm thấy
-        end
+    if aimbotActive and not heartbeatConnection then -- Chỉ kết nối nếu Aimbot đang bật và chưa có kết nối
+        heartbeatConnection = RunService.Heartbeat:Connect(function(deltaTime)
+            local char = player.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then
+                return -- Thoát khỏi hàm nếu không tìm thấy nhân vật hoặc HumanoidRootPart
+            end
 
-        local closestPlayer = nil
-        local closestDistance = math.huge
-        local targetPart = nil
+            local closestPlayer = nil
+            local closestDistance = math.huge
+            local targetPart = nil
 
-        for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-            if otherPlayer ~= player and otherPlayer.Character then
-                local targetChar = otherPlayer.Character
-                local humanoidRootPart = targetChar:FindFirstChild("HumanoidRootPart")
-                if humanoidRootPart then
-                    local dist = (humanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
-                    if dist < closestDistance then
-                        closestDistance = dist
-                        closestPlayer = otherPlayer
-                        targetPart = humanoidRootPart
+            for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+                if otherPlayer ~= player and otherPlayer.Character then
+                    local targetChar = otherPlayer.Character
+                    -- Ưu tiên HumanoidRootPart, sau đó là Head nếu HumanoidRootPart không có
+                    local humanoidRootPart = targetChar:FindFirstChild("HumanoidRootPart")
+                    local head = targetChar:FindFirstChild("Head")
+
+                    if humanoidRootPart or head then
+                        local partToTarget = humanoidRootPart or head
+                        local dist = (partToTarget.Position - char.HumanoidRootPart.Position).Magnitude
+                        if dist < closestDistance then
+                            closestDistance = dist
+                            closestPlayer = otherPlayer
+                            targetPart = partToTarget
+                        end
                     end
                 end
             end
-        end
 
-        if targetPart then
-            local targetPosition = targetPart.CFrame.Position
-            local currentPosition = mouse.Hit.Position
-            local newPosition = currentPosition:Lerp(targetPosition, smoothingFactor)
-
-            mouse.TargetFilter = targetPart
-            mouse.Hit = CFrame.new(newPosition)
-        else
-            mouse.TargetFilter = nil
-        end
-    end)
+            if targetPart then
+                -- Aimbot này điều chỉnh camera của người chơi để nhìn vào mục tiêu.
+                -- Điều này có thể không di chuyển con trỏ chuột thực tế nhưng sẽ hướng tầm nhìn của bạn.
+                local targetPosition = targetPart.CFrame.Position
+                local currentCameraCFrame = game.Workspace.CurrentCamera.CFrame
+                local newCFrame = CFrame.new(currentCameraCFrame.Position, targetPosition)
+                game.Workspace.CurrentCamera.CFrame = currentCameraCFrame:Lerp(newCFrame, smoothingFactor)
+                
+                -- Nếu bạn muốn ảnh hưởng đến mouse.Hit (ví dụ cho các script phụ thuộc vào nó)
+                mouse.TargetFilter = targetPart -- Có thể giúp các công cụ nhận diện mục tiêu dễ hơn.
+            else
+                mouse.TargetFilter = nil -- Đặt lại TargetFilter khi không có mục tiêu
+            end
+        end)
+    elseif not aimbotActive and heartbeatConnection then
+        -- Ngắt kết nối Aimbot nếu nó không còn hoạt động
+        heartbeatConnection:Disconnect()
+        heartbeatConnection = nil
+        mouse.TargetFilter = nil -- Đặt lại TargetFilter khi Aimbot tắt
+    end
 end
 
 -- Hiển thị/ẩn menu khi nhấn vào nút tròn với animation
 toggleButton.MouseButton1Click:Connect(function()
-    local goal
     if mainFrame.Visible then
-        goal = {Position = UDim2.new(0, 20, 0, 100)} -- Vị trí khi ẩn
-        TweenService:Create(mainFrame, menuTweenInfo, goal):Play()
-        -- Đợi tween hoàn thành trước khi ẩn hẳn
-        task.wait(menuTweenInfo.Time)
+        -- Ẩn menu
+        TweenService:Create(mainFrame, menuTweenInfo, {Position = hiddenMenuPosition}):Play()
+        task.wait(menuTweenInfo.Time) -- Đợi tween hoàn thành trước khi ẩn hẳn
         mainFrame.Visible = false
     else
-        goal = {Position = UDim2.new(0, 20, 0, 100)} -- Vị trí khi hiện
+        -- Hiển thị menu
         mainFrame.Visible = true
-        TweenService:Create(mainFrame, menuTweenInfo, goal):Play()
+        TweenService:Create(mainFrame, menuTweenInfo, {Position = visibleMenuPosition}):Play()
     end
 end)
 
 -- Các tính năng nhanh
 createFastActionButton("Auto Clicker", 40, function(state)
     autoClickerActive = state
-    if state then
-        runAutoClicker()
-    end
+    runAutoClicker() -- Hàm này giờ đây quản lý việc bắt đầu/dừng thread
 end)
 
 createFastActionButton("Aimbot", 90, function(state)
     aimbotActive = state
-    if state then
-        runAimbot()
-    elseif heartbeatConnection then
-        heartbeatConnection:Disconnect() -- Tắt Aimbot
-    end
+    runAimbot() -- Hàm này giờ đây quản lý việc kết nối/ngắt kết nối sự kiện Heartbeat
 end)
 
 createFastActionButton("Enlarge Hitbox", 140, function(state)
     enlargeHitboxActive = state
-    -- Thực hiện thay đổi hitbox ở đây
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        local humanoidRootPart = character.HumanoidRootPart
+        -- Lưu kích thước gốc để khôi phục
+        local originalSize = humanoidRootPart:GetAttribute("OriginalSize")
+        if not originalSize then
+            humanoidRootPart:SetAttribute("OriginalSize", humanoidRootPart.Size)
+            originalSize = humanoidRootPart.Size
+        end
+
+        if state then
+            print("Enlarge Hitbox ON")
+            -- Ví dụ: Tăng kích thước Hitbox (HumanoidRootPart).
+            -- Cân nhắc thêm các phần vô hình lớn hơn nếu muốn hitbox rộng hơn nữa.
+            humanoidRootPart.Size = originalSize * Vector3.new(1.5, 1.5, 1.5)
+            -- Cần cập nhật vị trí để nó không bị kẹt trong mặt đất
+            humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, (humanoidRootPart.Size.Y - originalSize.Y) / 2, 0)
+        else
+            print("Enlarge Hitbox OFF")
+            -- Khôi phục kích thước ban đầu
+            humanoidRootPart.Size = originalSize
+            -- Di chuyển lại vị trí ban đầu
+            humanoidRootPart.CFrame = humanoidRootPart.CFrame - Vector3.new(0, (humanoidRootPart.Size.Y - originalSize.Y) / 2, 0)
+        end
+    end
 end)
 
 createFastActionButton("Fly", 190, function(state)
     flying = state
-    -- Thực hiện thay đổi fly ở đây
+    local player = game.Players.LocalPlayer
+    local character = player.Character
+    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+    if humanoid and rootPart then
+        if state then
+            print("Fly ON")
+            humanoid.PlatformStand = true -- Ngăn rơi
+            -- Thêm BodyVelocity để di chuyển nhân vật lên và giữ ở trên không
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(0, humanoid.Mass * game.Workspace.Gravity * 2, 0) -- Đủ lực để bay lên
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0) -- Ban đầu không di chuyển
+            bodyVelocity.Parent = rootPart
+            bodyVelocity.Name = "FlyBodyVelocity"
+
+            -- Bạn có thể thêm các KeyCode Listener để di chuyển trong khi bay (ví dụ: W, A, S, D)
+            -- local flyConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            --     if gameProcessed then return end
+            --     if input.KeyCode == Enum.KeyCode.W then bodyVelocity.Velocity = rootPart.CFrame.LookVector * 50 end
+            --     -- ... các nút khác
+            -- end)
+            -- bodyVelocity:SetAttribute("FlyConnection", flyConnection) -- Lưu kết nối để ngắt sau
+        else
+            print("Fly OFF")
+            humanoid.PlatformStand = false
+            -- Xóa BodyVelocity
+            local bodyVelocity = rootPart:FindFirstChild("FlyBodyVelocity")
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+            end
+            -- local flyConnection = bodyVelocity:GetAttribute("FlyConnection")
+            -- if flyConnection then flyConnection:Disconnect() end
+        end
+    end
 end)
+
+-- (Tùy chọn) Thêm một thanh trượt để điều chỉnh tốc độ Auto Clicker
+-- Để tạo thanh trượt, bạn sẽ cần thêm các UI element như Frame, TextLabel, và TextButton cho việc kéo.
+-- Đây là một ví dụ giả định về cách bạn có thể tạo một thanh trượt:
+--[[
+local function createSlider(name, yPosition, minValue, maxValue, defaultValue, callback)
+    local sliderFrame = Instance.new("Frame", mainFrame)
+    sliderFrame.Size = UDim2.new(1, -10, 0, 30)
+    sliderFrame.Position = UDim2.new(0, 5, 0, yPosition)
+    sliderFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    sliderFrame.BorderSizePixel = 0
+
+    local sliderLabel = Instance.new("TextLabel", sliderFrame)
+    sliderLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    sliderLabel.Position = UDim2.new(0, 0, 0, 0)
+    sliderLabel.BackgroundTransparency = 1
+    sliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    sliderLabel.Font = Enum.Font.SourceSansBold
+    sliderLabel.TextSize = 14
+    sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
+    sliderLabel.TextYAlignment = Enum.TextYAlignment.Center
+    sliderLabel.Text = name .. ": " .. string.format("%.2f", defaultValue)
+
+    local sliderButton = Instance.new("TextButton", sliderFrame)
+    sliderButton.Size = UDim2.new(0, 10, 1, 0)
+    sliderButton.Position = UDim2.new(defaultValue / (maxValue - minValue), 0, 0, 0) -- Vị trí ban đầu
+    sliderButton.BackgroundColor3 = Color3.fromRGB(80, 80, 255)
+    sliderButton.BorderSizePixel = 0
+    sliderButton.Draggable = true
+
+    local currentValue = defaultValue
+    sliderButton.DraggableChanged:Connect(function()
+        local xPos = sliderButton.Position.X.Scale
+        currentValue = minValue + (maxValue - minValue) * xPos
+        sliderLabel.Text = name .. ": " .. string.format("%.2f", currentValue)
+        callback(currentValue)
+    end)
+    return {Value = currentValue, SliderLabel = sliderLabel} -- Trả về bảng có giá trị và nhãn
+end
+
+local clickSpeedSlider = createSlider("Click Speed", 240, 0.01, 0.5, 0.05, function(value)
+    print("Click Speed set to: " .. value)
+    -- Bạn sẽ cần một biến toàn cục hoặc cách để Auto Clicker truy cập giá trị này.
+    -- Ví dụ: globalClickSpeed = value
+end)
+-- Và sau đó trong runAutoClicker, sử dụng clickSpeedSlider.Value
+]]
+
