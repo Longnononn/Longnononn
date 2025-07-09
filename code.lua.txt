@@ -1,266 +1,113 @@
--- Tạo ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "HackMenu"
-screenGui.ResetOnSpawn = false
+-- script by Long dzz
 
--- Gán ScreenGui vào PlayerGui của người chơi
-screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-
--- Tạo Frame chính (Menu)
-local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 200, 0, 400) -- Tăng kích thước để chứa thêm slider
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-mainFrame.BorderSizePixel = 0
-mainFrame.Active = true
-mainFrame.Draggable = true
-
--- Vị trí ban đầu cho menu khi ẩn (ngoài màn hình bên trái)
-local hiddenMenuPosition = UDim2.new(0, -mainFrame.Size.X.Offset, 0, 100)
-local visibleMenuPosition = UDim2.new(0, 20, 0, 100) -- Vị trí khi hiển thị
-
-mainFrame.Position = hiddenMenuPosition -- Bắt đầu ẩn
-mainFrame.Visible = false -- Bắt đầu với menu ẩn
-
--- Tạo chữ "script by: Long Dzz" ở góc trên bên trái
-local titleLabel = Instance.new("TextLabel", mainFrame)
-titleLabel.Size = UDim2.new(0, 200, 0, 30)
-titleLabel.Position = UDim2.new(0, 0, 0, 0)
-titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.Font = Enum.Font.SourceSansBold
-titleLabel.TextSize = 14
-titleLabel.Text = "script by: Long Dzz"
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-titleLabel.TextYAlignment = Enum.TextYAlignment.Center
-
--- Tạo nút tròn mở menu
-local toggleButton = Instance.new("TextButton", screenGui)
-toggleButton.Size = UDim2.new(0, 50, 0, 50)
-toggleButton.Position = UDim2.new(0, 20, 0, 50) -- Đặt nút cao hơn để không bị menu che
-toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 255)
-toggleButton.Text = ""
-toggleButton.BorderSizePixel = 0
-toggleButton.Shape = Enum.TextButtonShape.Round
-
--- Thêm chữ vào nút tròn
-local toggleButtonLabel = Instance.new("TextLabel", toggleButton)
-toggleButtonLabel.Size = UDim2.new(1, 0, 1, 0)
-toggleButtonLabel.Position = UDim2.new(0, 0, 0, 0)
-toggleButtonLabel.BackgroundTransparency = 1
-toggleButtonLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButtonLabel.Font = Enum.Font.SourceSansBold
-toggleButtonLabel.TextSize = 18
-toggleButtonLabel.Text = "☰"
-toggleButtonLabel.TextXAlignment = Enum.TextXAlignment.Center
-toggleButtonLabel.TextYAlignment = Enum.TextYAlignment.Center
-
--- Tween Animation cho Menu
-local TweenService = game:GetService("TweenService")
-local menuTweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-
--- Biến trạng thái cho các chức năng
-local autoClickerActive = false
-local aimbotActive = false
-local enlargeHitboxActive = false
-local flying = false
-
--- Tham chiếu toàn cục cho thread Auto Clicker
-local autoClickerThread = nil
-local heartbeatConnection = nil
-
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
 
--- Hàm tạo các chức năng bật nhanh
-local function createFastActionButton(name, yPosition, callback)
-    -- Frame cho nút chức năng
-    local actionFrame = Instance.new("Frame", mainFrame)
-    actionFrame.Size = UDim2.new(1, -10, 0, 40)
-    actionFrame.Position = UDim2.new(0, 5, 0, yPosition)
-    actionFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    actionFrame.BorderSizePixel = 0
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
-    -- Tên chức năng
-    local label = Instance.new("TextLabel", actionFrame)
-    label.Size = UDim2.new(0, 100, 1, 0)
-    label.Position = UDim2.new(0, 10, 0, 0)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.Font = Enum.Font.SourceSansBold
-    label.TextSize = 14
-    label.Text = name
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.TextYAlignment = Enum.TextYAlignment.Center
+local walkSpeedDefault = 16
+local walkSpeedBoost = 28
+local noclipEnabled = false
+local speedEnabled = false
 
-    -- Nút nhấn bật/tắt chức năng
-    local button = Instance.new("TextButton", actionFrame)
-    button.Size = UDim2.new(0, 60, 0, 20)
-    button.Position = UDim2.new(1, -70, 0, 10)
-    button.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Đỏ khi OFF ban đầu
-    button.Text = "OFF"
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.Font = Enum.Font.SourceSansBold
-    button.TextSize = 14
-    button.BorderSizePixel = 0
+-- GUI setup (ẩn mình)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SysCoreUI" -- tên ít bị nghi ngờ
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-    local isActive = false -- Trạng thái của nút hiện tại (ON/OFF)
+-- Nút tròn để bật/tắt GUI
+local toggleGuiButton = Instance.new("TextButton")
+toggleGuiButton.Size = UDim2.new(0, 40, 0, 40)
+toggleGuiButton.Position = UDim2.new(0, 10, 0, 10)
+toggleGuiButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+toggleGuiButton.Text = "+"
+toggleGuiButton.TextScaled = true
+toggleGuiButton.TextColor3 = Color3.new(1, 1, 1)
+toggleGuiButton.BorderSizePixel = 0
+toggleGuiButton.AutoButtonColor = false
+toggleGuiButton.Font = Enum.Font.GothamBlack
+toggleGuiButton.Parent = screenGui
+toggleGuiButton.Name = "SysBtn"
+Instance.new("UICorner", toggleGuiButton)
 
-    button.MouseButton1Click:Connect(function()
-        isActive = not isActive -- Đảo ngược trạng thái
-        if isActive then
-            button.Text = "ON"
-            button.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- Xanh lá khi ON
-            callback(true) -- Kích hoạt chức năng
-        else
-            button.Text = "OFF"
-            button.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- Đỏ khi OFF
-            callback(false) -- Tắt chức năng
-        end
-    end)
+-- Frame chính
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 160, 0, 100)
+mainFrame.Position = UDim2.new(0, 60, 0, 10)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame)
+
+-- Text ghi tên tác giả
+local creditText = Instance.new("TextLabel")
+creditText.Size = UDim2.new(1, 0, 0, 20)
+creditText.Position = UDim2.new(0, 0, 0, 0)
+creditText.BackgroundTransparency = 1
+creditText.Text = "script by Long dzz"
+creditText.TextColor3 = Color3.new(1, 1, 1)
+creditText.Font = Enum.Font.Gotham
+creditText.TextScaled = true
+creditText.Parent = mainFrame
+
+-- Nút bật/tắt
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1, -20, 0, 40)
+toggleBtn.Position = UDim2.new(0, 10, 0, 30)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+toggleBtn.Text = "OFF"
+toggleBtn.TextScaled = true
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Parent = mainFrame
+Instance.new("UICorner", toggleBtn)
+
+-- Chức năng bật/tắt
+local function updateState(state)
+	noclipEnabled = state
+	speedEnabled = state
+
+	if speedEnabled then
+		humanoid.WalkSpeed = walkSpeedBoost
+		toggleBtn.Text = "ON"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+	else
+		humanoid.WalkSpeed = walkSpeedDefault
+		toggleBtn.Text = "OFF"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+	end
 end
 
--- Hàm Auto Clicker
-local function runAutoClicker()
-    local mouse = Players.LocalPlayer:GetMouse()
-    if autoClickerActive then
-        -- Chạy trong một thread riêng để không chặn UI
-        autoClickerThread = task.spawn(function()
-            while autoClickerActive do
-                UserInputService:SimulateMouseClick(mouse.X, mouse.Y, Enum.UserInputType.MouseButton1)
-                local clickDelay = 0.05
-                task.wait(clickDelay)
-            end
-        end)
-    elseif autoClickerThread then
-        task.cancel(autoClickerThread)
-        autoClickerThread = nil
-    end
-end
-
--- Hàm Aimbot
-local function runAimbot()
-    local player = Players.LocalPlayer
-    local mouse = player:GetMouse()
-    local smoothingFactor = 0.2
-
-    if aimbotActive and not heartbeatConnection then
-        heartbeatConnection = RunService.Heartbeat:Connect(function(deltaTime)
-            local char = player.Character
-            if not char or not char:FindFirstChild("HumanoidRootPart") then
-                return
-            end
-
-            local closestPlayer = nil
-            local closestDistance = math.huge
-            local targetPart = nil
-
-            for _, otherPlayer in pairs(Players:GetPlayers()) do
-                if otherPlayer ~= player and otherPlayer.Character then
-                    local targetChar = otherPlayer.Character
-                    local humanoidRootPart = targetChar:FindFirstChild("HumanoidRootPart")
-                    local head = targetChar:FindFirstChild("Head")
-
-                    if humanoidRootPart or head then
-                        local partToTarget = humanoidRootPart or head
-                        local dist = (partToTarget.Position - char.HumanoidRootPart.Position).Magnitude
-                        if dist < closestDistance then
-                            closestDistance = dist
-                            closestPlayer = otherPlayer
-                            targetPart = partToTarget
-                        end
-                    end
-                end
-            end
-
-            if targetPart then
-                local targetPosition = targetPart.CFrame.Position
-                local currentCameraCFrame = game.Workspace.CurrentCamera.CFrame
-                local newCFrame = CFrame.new(currentCameraCFrame.Position, targetPosition)
-                game.Workspace.CurrentCamera.CFrame = currentCameraCFrame:Lerp(newCFrame, smoothingFactor)
-
-                mouse.TargetFilter = targetPart 
-            else
-                mouse.TargetFilter = nil
-            end
-        end)
-    elseif not aimbotActive and heartbeatConnection then
-        heartbeatConnection:Disconnect()
-        heartbeatConnection = nil
-        mouse.TargetFilter = nil
-    end
-end
-
--- Hiển thị/ẩn menu khi nhấn vào nút tròn với animation
-toggleButton.MouseButton1Click:Connect(function()
-    if mainFrame.Visible then
-        -- Ẩn menu
-        TweenService:Create(mainFrame, menuTweenInfo, {Position = hiddenMenuPosition}):Play()
-        task.wait(menuTweenInfo.Time) -- Đợi tween hoàn thành trước khi ẩn hẳn
-        mainFrame.Visible = false
-    else
-        -- Hiển thị menu
-        mainFrame.Visible = true
-        TweenService:Create(mainFrame, menuTweenInfo, {Position = visibleMenuPosition}):Play()
-    end
+-- Toggle GUI hiển thị
+toggleGuiButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
 end)
 
--- Các tính năng nhanh
-createFastActionButton("Auto Clicker", 40, function(state)
-    autoClickerActive = state
-    runAutoClicker() 
+-- Toggle chức năng
+toggleBtn.MouseButton1Click:Connect(function()
+	updateState(not speedEnabled)
 end)
 
-createFastActionButton("Aimbot", 90, function(state)
-    aimbotActive = state
-    runAimbot() 
+-- NoClip khi cần
+RunService.Stepped:Connect(function()
+	if noclipEnabled and character then
+		for _, v in ipairs(character:GetDescendants()) do
+			if v:IsA("BasePart") and v.CanCollide == true then
+				v.CanCollide = false
+			end
+		end
+	end
 end)
 
-createFastActionButton("Enlarge Hitbox", 140, function(state)
-    enlargeHitboxActive = state
-    local player = Players.LocalPlayer
-    local character = player.Character
-
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        local humanoidRootPart = character.HumanoidRootPart
-        local originalSize = humanoidRootPart:GetAttribute("OriginalSize")
-        if not originalSize then
-            humanoidRootPart:SetAttribute("OriginalSize", humanoidRootPart.Size)
-            originalSize = humanoidRootPart.Size
-        end
-
-        if state then
-            humanoidRootPart.Size = originalSize * Vector3.new(1.5, 1.5, 1.5)
-            humanoidRootPart.CFrame = humanoidRootPart.CFrame + Vector3.new(0, (humanoidRootPart.Size.Y - originalSize.Y) / 2, 0)
-        else
-            humanoidRootPart.CFrame = humanoidRootPart.CFrame - Vector3.new(0, (humanoidRootPart.Size.Y - originalSize.Y) / 2, 0)
-            humanoidRootPart.Size = originalSize
-        end
-    end
-end)
-
-createFastActionButton("Fly", 190, function(state)
-    flying = state
-    local player = Players.LocalPlayer
-    local character = player.Character
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-
-    if humanoid and rootPart then
-        if state then
-            humanoid.PlatformStand = true
-
-            local bodyVelocity = Instance.new("BodyVelocity")
-            bodyVelocity.MaxForce = Vector3.new(0, humanoid.Mass * game.Workspace.Gravity * 2, 0)
-            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-            bodyVelocity.Parent = rootPart
-            bodyVelocity.Name = "FlyBodyVelocity"
-        else
-            humanoid.PlatformStand = false
-            local bodyVelocity = rootPart:FindFirstChild("FlyBodyVelocity")
-            if bodyVelocity then
-                bodyVelocity:Destroy()
-            end
-        end
-    end
+-- Khi nhân vật hồi sinh
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	if speedEnabled then
+		humanoid.WalkSpeed = walkSpeedBoost
+	end
 end)
