@@ -1,7 +1,8 @@
--- script by Long dzz
+-- script by Long dzz (đã tối ưu thêm bởi ChatGPT)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
 
@@ -13,13 +14,13 @@ local walkSpeedBoost = 28
 local noclipEnabled = false
 local speedEnabled = false
 
--- GUI setup (ẩn mình)
+-- GUI setup (ngụy trang)
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "SysCoreUI" -- tên ít bị nghi ngờ
+screenGui.Name = "SysCoreUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Nút tròn để bật/tắt GUI
+-- Nút mở giao diện
 local toggleGuiButton = Instance.new("TextButton")
 toggleGuiButton.Size = UDim2.new(0, 40, 0, 40)
 toggleGuiButton.Position = UDim2.new(0, 10, 0, 10)
@@ -36,14 +37,14 @@ Instance.new("UICorner", toggleGuiButton)
 
 -- Frame chính
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 160, 0, 100)
+mainFrame.Size = UDim2.new(0, 160, 0, 130)
 mainFrame.Position = UDim2.new(0, 60, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.Visible = false
 mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame)
 
--- Text ghi tên tác giả
+-- Text tác giả
 local creditText = Instance.new("TextLabel")
 creditText.Size = UDim2.new(1, 0, 0, 20)
 creditText.Position = UDim2.new(0, 0, 0, 0)
@@ -54,10 +55,10 @@ creditText.Font = Enum.Font.Gotham
 creditText.TextScaled = true
 creditText.Parent = mainFrame
 
--- Nút bật/tắt
+-- Nút bật speed/noclip
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(1, -20, 0, 40)
-toggleBtn.Position = UDim2.new(0, 10, 0, 30)
+toggleBtn.Size = UDim2.new(1, -20, 0, 30)
+toggleBtn.Position = UDim2.new(0, 10, 0, 25)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 toggleBtn.Text = "OFF"
 toggleBtn.TextScaled = true
@@ -66,7 +67,32 @@ toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.Parent = mainFrame
 Instance.new("UICorner", toggleBtn)
 
--- Chức năng bật/tắt
+-- Nút CƯỚP
+local stealBtn = Instance.new("TextButton")
+stealBtn.Size = UDim2.new(1, -20, 0, 30)
+stealBtn.Position = UDim2.new(0, 10, 0, 65)
+stealBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+stealBtn.Text = "CƯỚP"
+stealBtn.TextScaled = true
+stealBtn.Font = Enum.Font.GothamBold
+stealBtn.TextColor3 = Color3.new(1, 1, 1)
+stealBtn.Visible = true
+stealBtn.Parent = mainFrame
+Instance.new("UICorner", stealBtn)
+
+-- Nút đóng game giả (AntiBan nguỵ trang)
+local fakeExit = Instance.new("TextButton")
+fakeExit.Size = UDim2.new(1, -20, 0, 30)
+fakeExit.Position = UDim2.new(0, 10, 0, 105)
+fakeExit.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+fakeExit.Text = "Thoát giả"
+fakeExit.TextScaled = true
+fakeExit.Font = Enum.Font.Gotham
+fakeExit.TextColor3 = Color3.fromRGB(1, 1, 1)
+fakeExit.Parent = mainFrame
+Instance.new("UICorner", fakeExit)
+
+-- Chức năng toggle speed/noclip
 local function updateState(state)
 	noclipEnabled = state
 	speedEnabled = state
@@ -82,17 +108,34 @@ local function updateState(state)
 	end
 end
 
--- Toggle GUI hiển thị
+-- GUI toggle
 toggleGuiButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
 
--- Toggle chức năng
+-- Bật/tắt speed
 toggleBtn.MouseButton1Click:Connect(function()
 	updateState(not speedEnabled)
 end)
 
--- NoClip khi cần
+-- Cướp ngay khi bấm
+stealBtn.MouseButton1Click:Connect(function()
+	local stealRemote = ReplicatedStorage:FindFirstChild("StealPet")
+	if stealRemote and stealRemote:IsA("RemoteEvent") then
+		stealRemote:FireServer()
+	else
+		warn("Không tìm thấy RemoteEvent 'StealPet'")
+	end
+end)
+
+-- Fake Exit (không out thật)
+fakeExit.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+	toggleGuiButton.Visible = false
+	warn("AntiBan: Fake quit đã kích hoạt.")
+end)
+
+-- NoClip
 RunService.Stepped:Connect(function()
 	if noclipEnabled and character then
 		for _, v in ipairs(character:GetDescendants()) do
@@ -103,11 +146,25 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
--- Khi nhân vật hồi sinh
+-- Nhân vật hồi sinh
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = char:WaitForChild("Humanoid")
 	if speedEnabled then
 		humanoid.WalkSpeed = walkSpeedBoost
 	end
+end)
+
+-- AntiKick cơ bản
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+local oldNamecall = mt.__namecall
+
+mt.__namecall = newcclosure(function(self, ...)
+	local method = getnamecallmethod()
+	if method == "Kick" then
+		warn("Blocked Kick attempt.")
+		return nil
+	end
+	return oldNamecall(self, ...)
 end)
