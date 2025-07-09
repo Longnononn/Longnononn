@@ -1,45 +1,31 @@
--- script by Long dzz (tối ưu bởi ChatGPT)
+-- script by Long dzz (đã tối ưu thêm bởi ChatGPT & Gemini)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UIS = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-local player = Players.LocalPlayer
 
--- Khởi tạo biến
-local character
-local humanoid
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+
 local walkSpeedDefault = 16
 local walkSpeedBoost = 28
 local noclipEnabled = false
 local speedEnabled = false
-local stealRange = 15
+
+local stealRange = 15 -- Khoảng cách tối đa để có thể cướp
 local lastStealTime = 0
-local stealCooldown = 0.5
+local stealCooldown = 0.5 -- Cooldown giữa các lần cướp
 
--- Cập nhật lại nhân vật mỗi khi respawn
-local function updateCharacterReferences()
-	character = player.Character or player.CharacterAdded:Wait()
-	humanoid = character:WaitForChild("Humanoid")
-	character:WaitForChild("HumanoidRootPart")
-end
-
-updateCharacterReferences()
-
-player.CharacterAdded:Connect(function()
-	updateCharacterReferences()
-	if speedEnabled then
-		humanoid.WalkSpeed = walkSpeedBoost
-	end
-end)
-
--- Tạo GUI ngụy trang
+-- GUI setup (ngụy trang)
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SysCoreUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
+-- Nút mở giao diện
 local toggleGuiButton = Instance.new("TextButton")
 toggleGuiButton.Size = UDim2.new(0, 40, 0, 40)
 toggleGuiButton.Position = UDim2.new(0, 10, 0, 10)
@@ -54,14 +40,16 @@ toggleGuiButton.Parent = screenGui
 toggleGuiButton.Name = "SysBtn"
 Instance.new("UICorner", toggleGuiButton)
 
+-- Frame chính
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 160, 0, 130)
+mainFrame.Size = UDim2.new(0, 160, 0, 140)
 mainFrame.Position = UDim2.new(0, 60, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.Visible = false
 mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame)
 
+-- Text tác giả
 local creditText = Instance.new("TextLabel")
 creditText.Size = UDim2.new(1, 0, 0, 20)
 creditText.Position = UDim2.new(0, 0, 0, 0)
@@ -72,6 +60,7 @@ creditText.Font = Enum.Font.Gotham
 creditText.TextScaled = true
 creditText.Parent = mainFrame
 
+-- Nút bật speed/noclip
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(1, -20, 0, 30)
 toggleBtn.Position = UDim2.new(0, 10, 0, 25)
@@ -83,6 +72,7 @@ toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.Parent = mainFrame
 Instance.new("UICorner", toggleBtn)
 
+-- Nút Cướp Nhanh
 local stealBtn = Instance.new("TextButton")
 stealBtn.Size = UDim2.new(1, -20, 0, 30)
 stealBtn.Position = UDim2.new(0, 10, 0, 65)
@@ -95,9 +85,22 @@ stealBtn.Visible = true
 stealBtn.Parent = mainFrame
 Instance.new("UICorner", stealBtn)
 
+-- Nút Auto Cướp ON/OFF
+local autoStealBtn = Instance.new("TextButton")
+autoStealBtn.Size = UDim2.new(1, -20, 0, 30)
+autoStealBtn.Position = UDim2.new(0, 10, 0, 105)
+autoStealBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
+autoStealBtn.Text = "AUTO: OFF"
+autoStealBtn.TextScaled = true
+autoStealBtn.Font = Enum.Font.GothamBold
+autoStealBtn.TextColor3 = Color3.new(1, 1, 1)
+autoStealBtn.Parent = mainFrame
+Instance.new("UICorner", autoStealBtn)
+
+-- Nút thoát giả
 local fakeExit = Instance.new("TextButton")
 fakeExit.Size = UDim2.new(1, -20, 0, 30)
-fakeExit.Position = UDim2.new(0, 10, 0, 105)
+fakeExit.Position = UDim2.new(0, 10, 0, 140)
 fakeExit.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 fakeExit.Text = "Thoát giả"
 fakeExit.TextScaled = true
@@ -106,7 +109,7 @@ fakeExit.TextColor3 = Color3.fromRGB(1, 1, 1)
 fakeExit.Parent = mainFrame
 Instance.new("UICorner", fakeExit)
 
--- Tăng tốc / noclip toggle
+-- Hàm update trạng thái speed/noclip
 local function updateState(state)
 	noclipEnabled = state
 	speedEnabled = state
@@ -127,22 +130,23 @@ toggleGuiButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
 
+-- Bật/tắt speed/noclip
 toggleBtn.MouseButton1Click:Connect(function()
 	updateState(not speedEnabled)
 end)
 
--- Tìm vật thể có thể cướp
+-- Hàm tìm mục tiêu cướp gần nhất (phần thay đổi theo game)
 local function findNearestStealableTarget()
-	local nearestTarget
+	local nearestTarget = nil
 	local shortestDistance = stealRange + 1
-	local pos = character:WaitForChild("HumanoidRootPart").Position
+	local playerPosition = character.HumanoidRootPart.Position
 
 	for _, obj in pairs(Workspace:GetDescendants()) do
 		if obj:IsA("BasePart") and obj.Name == "StealableItem" then
-			local dist = (obj.Position - pos).Magnitude
-			if dist <= stealRange and dist < shortestDistance then
+			local distance = (obj.Position - playerPosition).Magnitude
+			if distance <= stealRange and distance < shortestDistance then
+				shortestDistance = distance
 				nearestTarget = obj
-				shortestDistance = dist
 			end
 		end
 	end
@@ -150,7 +154,7 @@ local function findNearestStealableTarget()
 	return nearestTarget
 end
 
--- Nút cướp
+-- Cướp nhanh khi bấm nút
 stealBtn.MouseButton1Click:Connect(function()
 	if tick() - lastStealTime < stealCooldown then
 		warn("Steal on cooldown.")
@@ -158,58 +162,100 @@ stealBtn.MouseButton1Click:Connect(function()
 	end
 
 	local target = findNearestStealableTarget()
-	if not target then
-		warn("Không tìm thấy mục tiêu.")
-		return
-	end
 
-	local remote = ReplicatedStorage:FindFirstChild("StealPet")
-	if remote and remote:IsA("RemoteEvent") then
-		local success, err = pcall(function()
-			remote:FireServer(target)
-		end)
-		if success then
+	if target then
+		local stealRemote = ReplicatedStorage:FindFirstChild("StealPet")
+		if stealRemote and stealRemote:IsA("RemoteEvent") then
+			stealRemote:FireServer(target)
 			print("Đã gửi yêu cầu cướp:", target.Name)
 			lastStealTime = tick()
 		else
-			warn("Lỗi gửi yêu cầu:", err)
+			warn("Không tìm thấy RemoteEvent 'StealPet'.")
 		end
 	else
-		warn("Không tìm thấy RemoteEvent 'StealPet'")
+		warn("Không tìm thấy mục tiêu cướp nào.")
 	end
 end)
 
--- Thoát giả
+-- Toggle Auto Cướp ON/OFF
+local autoStealEnabled = false
+autoStealBtn.MouseButton1Click:Connect(function()
+	autoStealEnabled = not autoStealEnabled
+	if autoStealEnabled then
+		autoStealBtn.Text = "AUTO: ON"
+		autoStealBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 255)
+	else
+		autoStealBtn.Text = "AUTO: OFF"
+		autoStealBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
+	end
+end)
+
+-- Vòng lặp Auto Cướp (tự động bấm ProximityPrompt gần nhất)
+task.spawn(function()
+	while true do
+		if autoStealEnabled then
+			local root = character:FindFirstChild("HumanoidRootPart")
+			if root then
+				for _, obj in pairs(Workspace:GetDescendants()) do
+					if obj:IsA("ProximityPrompt") and obj.Enabled then
+						local part = obj.Parent
+						if part and part:IsA("BasePart") then
+							local dist = (part.Position - root.Position).Magnitude
+							if dist <= obj.MaxActivationDistance then
+								pcall(function()
+									obj:InputHoldEnd() -- chắc chắn không giữ nút
+									obj:InputTriggered() -- nhấn phát
+								end)
+								lastStealTime = tick()
+							end
+						end
+					end
+				end
+			end
+		end
+		task.wait(0.1)
+	end
+end)
+
+-- Fake Exit (không thoát thật)
 local function activateFakeExit()
 	mainFrame.Visible = false
 	toggleGuiButton.Visible = false
-	warn("AntiBan: Đã ẩn GUI.")
+	warn("AntiBan: Fake quit đã kích hoạt tự động.")
 end
-
 fakeExit.MouseButton1Click:Connect(activateFakeExit)
+activateFakeExit()
 
--- NoClip thông minh
-RunService.Stepped:Connect(function()
-	if character and character:FindFirstChild("HumanoidRootPart") then
-		for _, v in ipairs(character:GetDescendants()) do
-			if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then
-				v.CanCollide = not noclipEnabled
+-- NoClip fix chuẩn, disable va chạm tất cả BasePart trong character khi bật
+RunService.RenderStepped:Connect(function()
+	if noclipEnabled and character then
+		for _, v in pairs(character:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.CanCollide = false
 			end
 		end
 	end
 end)
 
--- AntiKick an toàn hơn
-local success, mt = pcall(getrawmetatable, game)
-if success and mt then
-	setreadonly(mt, false)
-	local oldNamecall = mt.__namecall
-	mt.__namecall = newcclosure(function(self, ...)
-		if getnamecallmethod() == "Kick" and self == player then
-			warn("[AntiKick] Chặn kick.")
-			return
-		end
-		return oldNamecall(self, ...)
-	end)
-	setreadonly(mt, true)
-end
+-- Xử lý nhân vật hồi sinh
+player.CharacterAdded:Connect(function(char)
+	character = char
+	humanoid = char:WaitForChild("Humanoid")
+	char:WaitForChild("HumanoidRootPart")
+	if speedEnabled then
+		humanoid.WalkSpeed = walkSpeedBoost
+	end
+end)
+
+-- AntiKick cơ bản
+local mt = getrawmetatable(game)
+setreadonly(mt, false)
+local oldNamecall = mt.__namecall
+mt.__namecall = newcclosure(function(self, ...)
+	local method = getnamecallmethod()
+	if method == "Kick" then
+		warn("Blocked Kick attempt.")
+		return nil
+	end
+	return oldNamecall(self, ...)
+end)
