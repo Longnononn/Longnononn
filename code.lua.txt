@@ -1,10 +1,11 @@
--- script by Long dzz (đã tối ưu thêm bởi ChatGPT)
+-- script by Long dzz (đã tối ưu thêm bởi ChatGPT & Gemini)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local UIS = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -13,6 +14,10 @@ local walkSpeedDefault = 16
 local walkSpeedBoost = 28
 local noclipEnabled = false
 local speedEnabled = false
+
+local stealRange = 15 -- Khoảng cách tối đa để có thể cướp (có thể điều chỉnh)
+local lastStealTime = 0
+local stealCooldown = 0.5 -- Thời gian cooldown giữa các lần cướp (giúp tránh spam)
 
 -- GUI setup (ngụy trang)
 local screenGui = Instance.new("ScreenGui")
@@ -72,7 +77,7 @@ local stealBtn = Instance.new("TextButton")
 stealBtn.Size = UDim2.new(1, -20, 0, 30)
 stealBtn.Position = UDim2.new(0, 10, 0, 65)
 stealBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
-stealBtn.Text = "CƯỚP"
+stealBtn.Text = "CƯỚP NHANH" -- Đổi tên nút
 stealBtn.TextScaled = true
 stealBtn.Font = Enum.Font.GothamBold
 stealBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -118,28 +123,84 @@ toggleBtn.MouseButton1Click:Connect(function()
 	updateState(not speedEnabled)
 end)
 
--- Cướp ngay khi bấm
+-- Hàm tìm đối tượng cướp gần nhất (ví dụ)
+-- **Bạn cần điều chỉnh hàm này cho phù hợp với cấu trúc game bạn đang chơi.**
+-- Ví dụ: tìm các Part có tên "PetToSteal" hoặc "Vault"
+local function findNearestStealableTarget()
+    local nearestTarget = nil
+    local shortestDistance = stealRange + 1 -- Khởi tạo lớn hơn tầm cướp
+
+    local playerPosition = character.HumanoidRootPart.Position
+
+    -- **Đây là phần bạn cần thay đổi để tìm đúng mục tiêu cướp trong game của bạn.**
+    -- Ví dụ: Giả sử các đối tượng cướp có tên "StealableItem" và nằm trong Workspace.
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and obj.Name == "StealableItem" then -- Thay "StealableItem" bằng tên thực tế
+            local distance = (obj.Position - playerPosition).Magnitude
+            if distance <= stealRange and distance < shortestDistance then
+                shortestDistance = distance
+                nearestTarget = obj
+            end
+        end
+    end
+    return nearestTarget
+end
+
+-- Cướp nhanh khi bấm
 stealBtn.MouseButton1Click:Connect(function()
-	local stealRemote = ReplicatedStorage:FindFirstChild("StealPet")
-	if stealRemote and stealRemote:IsA("RemoteEvent") then
-		stealRemote:FireServer()
-	else
-		warn("Không tìm thấy RemoteEvent 'StealPet'")
-	end
+    if tick() - lastStealTime < stealCooldown then
+        warn("Steal on cooldown.")
+        return -- Chặn spam
+    end
+
+    local target = findNearestStealableTarget()
+
+    if target then
+        -- Kích hoạt RemoteEvent để cướp (giả định)
+        local stealRemote = ReplicatedStorage:FindFirstChild("StealPet") -- RemoteEvent ban đầu của bạn
+        if stealRemote and stealRemote:IsA("RemoteEvent") then
+            -- Nếu game yêu cầu truyền đối tượng bạn muốn cướp qua RemoteEvent:
+            stealRemote:FireServer(target) -- Truyền đối tượng mục tiêu qua RemoteEvent
+            print("Đã gửi yêu cầu cướp:", target.Name)
+            lastStealTime = tick() -- Cập nhật thời gian cướp cuối cùng
+        else
+            warn("Không tìm thấy RemoteEvent 'StealPet' hoặc nó không hợp lệ.")
+            -- **Nếu game không dùng RemoteEvent này, bạn cần tìm RemoteEvent đúng.**
+            -- Có thể bạn cần dùng GetChildren() của ReplicatedStorage và kiểm tra các RemoteEvent khác
+            -- Hoặc tìm các RemoteEvent có tên liên quan đến "interact", "collect", "steal"
+        end
+
+        -- **Nếu game dùng ProximityPrompt:**
+        -- LocalPlayer.Character.HumanoidRootPart.CFrame = target.CFrame + Vector3.new(0,0,-5) -- Dịch chuyển đến gần
+        -- task.wait(0.1)
+        -- target.ProximityPrompt:Fire() -- Kích hoạt ProximityPrompt
+
+        -- **Nếu game dùng ClickDetector:**
+        -- target.ClickDetector:FireServer()
+
+    else
+        warn("Không tìm thấy mục tiêu cướp nào trong tầm hoặc quá xa.")
+    end
 end)
 
 -- Fake Exit (không out thật)
-fakeExit.MouseButton1Click:Connect(function()
+-- Chuyển thành function để có thể gọi tự động
+local function activateFakeExit()
 	mainFrame.Visible = false
 	toggleGuiButton.Visible = false
-	warn("AntiBan: Fake quit đã kích hoạt.")
-end)
+	warn("AntiBan: Fake quit đã kích hoạt tự động.")
+end
+
+fakeExit.MouseButton1Click:Connect(activateFakeExit) -- Vẫn giữ sự kiện click để tùy chọn bấm
+
+-- Tích hợp nút thoát giả luôn hoạt động ko cần bấm:
+activateFakeExit()
 
 -- NoClip
 RunService.Stepped:Connect(function()
-	if noclipEnabled and character then
+	if noclipEnabled and character and character.HumanoidRootPart then -- Thêm kiểm tra HumanoidRootPart
 		for _, v in ipairs(character:GetDescendants()) do
-			if v:IsA("BasePart") and v.CanCollide == true then
+			if v:IsA("BasePart") and v.CanCollide == true and v.Name ~= "HumanoidRootPart" then -- Tránh noclip HumanoidRootPart nếu không cần
 				v.CanCollide = false
 			end
 		end
@@ -150,9 +211,13 @@ end)
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = char:WaitForChild("Humanoid")
+    -- Đợi HumanoidRootPart xuất hiện trước khi sử dụng
+    char:WaitForChild("HumanoidRootPart")
 	if speedEnabled then
 		humanoid.WalkSpeed = walkSpeedBoost
 	end
+	-- Bạn có thể cân nhắc gọi activateFakeExit() ở đây nếu muốn UI ẩn sau mỗi lần hồi sinh
+	-- activateFakeExit()
 end)
 
 -- AntiKick cơ bản
@@ -168,3 +233,4 @@ mt.__namecall = newcclosure(function(self, ...)
 	end
 	return oldNamecall(self, ...)
 end)
+
