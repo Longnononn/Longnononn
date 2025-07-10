@@ -13,11 +13,16 @@ local hrp = character:WaitForChild("HumanoidRootPart")
 local camera = Workspace.CurrentCamera
 
 -- Biến mới cho góc nhìn thứ ba
-local currentCameraOffset = Vector3.new(0, 5, 15) -- Offset mặc định ban đầu
+local currentCameraOffset = Vector3.new(0, 5, 15) -- Offset mặc định ban đầu (X, Y, Z)
 local minZoomDistance = 5  -- Khoảng cách zoom tối thiểu
 local maxZoomDistance = 30 -- Khoảng cách zoom tối đa
 local zoomSpeed = 2        -- Tốc độ zoom khi cuộn chuột
 local cameraSmoothness = 0.2 -- Độ mượt của camera (0.01 đến 1, càng nhỏ càng mượt)
+
+-- Biến mới cho xoay camera
+local cameraYaw = 0 -- Góc quay ngang (trái/phải)
+local cameraPitch = 0 -- Góc quay dọc (lên/xuống)
+local rotationSpeed = 0.2 -- Tốc độ xoay camera
 
 -- Update character when respawning
 local function updateCharacter()
@@ -149,8 +154,10 @@ thirdPersonBtn.MouseButton1Click:Connect(function()
 	if thirdPersonEnabled then
 		camera.CameraType = Enum.CameraType.Scriptable
 		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-		-- Đặt lại offset Z về giá trị hiện tại khi bật lại chế độ
-		currentCameraOffset = Vector3.new(currentCameraOffset.X, currentCameraOffset.Y, currentCameraOffset.Z)
+		-- Đặt lại offset Z về giá trị mặc định ban đầu khi bật lại chế độ
+		currentCameraOffset = Vector3.new(currentCameraOffset.X, currentCameraOffset.Y, 15) -- Đặt lại về 15 (giá trị mặc định)
+		cameraYaw = hrp.Orientation.Y -- Khởi tạo góc yaw theo hướng nhân vật
+		cameraPitch = 0 -- Đặt lại góc pitch về 0
 	else
 		camera.CameraType = Enum.CameraType.Custom
 		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
@@ -166,22 +173,31 @@ end)
 
 --- **CÁC TÍNH NĂNG MỚI ĐƯỢC CHỈNH SỬA Ở ĐÂY** ---
 
--- Xử lý Zoom camera khi cuộn chuột
+-- Xử lý Zoom camera khi cuộn chuột và Xoay camera khi di chuyển chuột
 UserInputService.InputChanged:Connect(function(input, gameProcessedEvent)
-	if thirdPersonEnabled and input.UserInputType == Enum.UserInputType.MouseWheel then
-		-- Tăng hoặc giảm khoảng cách zoom dựa trên cuộn chuột
-		local newZ = currentCameraOffset.Z - (input.Position.Z * zoomSpeed) -- input.Position.Z là 1 cho cuộn lên, -1 cho cuộn xuống
+	if thirdPersonEnabled then
+		if input.UserInputType == Enum.UserInputType.MouseWheel then
+			-- Tăng hoặc giảm khoảng cách zoom dựa trên cuộn chuột
+			local newZ = currentCameraOffset.Z - (input.Position.Z * zoomSpeed) -- input.Position.Z là 1 cho cuộn lên, -1 cho cuộn xuống
 
-		-- Giới hạn khoảng cách zoom
-		newZ = math.clamp(newZ, minZoomDistance, maxZoomDistance)
+			-- Giới hạn khoảng cách zoom
+			newZ = math.clamp(newZ, minZoomDistance, maxZoomDistance)
 
-		-- Cập nhật offset Z
-		currentCameraOffset = Vector3.new(currentCameraOffset.X, currentCameraOffset.Y, newZ)
+			-- Cập nhật offset Z
+			currentCameraOffset = Vector3.new(currentCameraOffset.X, currentCameraOffset.Y, newZ)
+		elseif input.UserInputType == Enum.UserInputType.MouseMovement and not gameProcessedEvent then
+			-- Xoay camera khi di chuyển chuột
+			cameraYaw = cameraYaw - input.Delta.X * rotationSpeed
+			cameraPitch = cameraPitch - input.Delta.Y * rotationSpeed
+
+			-- Giới hạn góc pitch để tránh lộn ngược camera
+			cameraPitch = math.clamp(cameraPitch, math.rad(-80), math.rad(80)) -- Giới hạn từ -80 đến 80 độ
+		end
 	end
 end)
 
 
--- RunService effects (LÀM MƯỢT VÀ ZOOM CAMERA)
+-- RunService effects (LÀM MƯỢT, ZOOM VÀ XOAY CAMERA)
 RunService.Stepped:Connect(function()
 	if noclipEnabled and character then
 		for _, part in ipairs(character:GetDescendants()) do
@@ -192,22 +208,27 @@ RunService.Stepped:Connect(function()
 	end
 
 	if thirdPersonEnabled and hrp then
-		-- Sử dụng currentCameraOffset để tính toán vị trí camera
-		local targetPos = hrp.Position + hrp.CFrame.LookVector * -currentCameraOffset.Z + Vector3.new(0, currentCameraOffset.Y, 0)
+		-- Tạo CFrame quay dựa trên góc yaw và pitch
+		local rotationCFrame = CFrame.Angles(0, cameraYaw, 0) * CFrame.Angles(cameraPitch, 0, 0)
+
+		-- Tính toán vị trí camera mong muốn
+		-- Bắt đầu từ vị trí HumanoidRootPart, sau đó áp dụng rotation và offset
+		local targetCameraCFrame = CFrame.new(hrp.Position) * rotationCFrame * CFrame.new(currentCameraOffset.X, currentCameraOffset.Y, currentCameraOffset.Z)
 
 		local rayParams = RaycastParams.new()
 		rayParams.FilterDescendantsInstances = { character }
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-		local result = Workspace:Raycast(hrp.Position, (targetPos - hrp.Position).Unit * currentCameraOffset.Magnitude, rayParams)
-		local desiredCFrame
+		-- Kiểm tra vật cản giữa HumanoidRootPart và vị trí camera mong muốn
+		local result = Workspace:Raycast(hrp.Position, (targetCameraCFrame.Position - hrp.Position).Unit * (targetCameraCFrame.Position - hrp.Position).Magnitude, rayParams)
 
+		local desiredCFrame
 		if result then
-			-- Nếu có vật cản, đặt camera lùi lại một chút từ điểm va chạm
-			desiredCFrame = CFrame.lookAt(result.Position - (targetPos - hrp.Position).Unit * 2, hrp.Position)
+			-- Nếu có vật cản, đặt camera lùi lại một chút từ điểm va chạm và vẫn giữ hướng quay
+			desiredCFrame = CFrame.new(result.Position - (targetCameraCFrame.Position - hrp.Position).Unit * 2) * rotationCFrame
 		else
 			-- Nếu không có vật cản, đặt camera ở vị trí tính toán
-			desiredCFrame = CFrame.lookAt(targetPos, hrp.Position)
+			desiredCFrame = targetCameraCFrame
 		end
 
 		-- Làm mượt chuyển động của camera
