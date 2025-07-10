@@ -15,6 +15,10 @@ local function updateCharacter()
     character = player.Character or player.CharacterAdded:Wait()
     humanoid = character:WaitForChild("Humanoid")
     hrp = character:WaitForChild("HumanoidRootPart")
+    -- Đảm bảo tốc độ được áp dụng lại nếu đang bật khi nhân vật hồi sinh
+    if speedEnabled then
+        humanoid.WalkSpeed = 30
+    end
 end
 
 player.CharacterAdded:Connect(updateCharacter)
@@ -157,25 +161,31 @@ end)
 spawn(function()
 	while task.wait(0.05) do -- Slightly faster update for smoother aim
 		pcall(function()
-            if not autoAimEnabled or not hrp then return end -- Check if enabled and hrp exists
+            if not autoAimEnabled or not hrp or not humanoid then return end -- Check if enabled and hrp, humanoid exists
 
 			local closest, dist = nil, 100 -- Limit range to 100 studs
 			for _, obj in ipairs(Workspace:GetDescendants()) do
-                -- Check if it's a model with Humanoid and not the player's own character
-				if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj ~= character then
-					local head = obj:FindFirstChild("Head")
-                    if head and head:IsA("BasePart") then -- Ensure it's a valid part
-                        local currentDist = (head.Position - hrp.Position).Magnitude
-                        if currentDist < dist then
-                            dist = currentDist
-                            closest = head
+                -- Kiểm tra xem đó có phải là một model có Humanoid và không phải là nhân vật của người chơi
+                if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj ~= character then
+                    local targetHumanoid = obj:FindFirstChildOfClass("Humanoid")
+                    -- Chỉ nhắm mục tiêu nếu Humanoid còn sống
+                    if targetHumanoid and targetHumanoid.Health > 0 then
+                        local head = obj:FindFirstChild("Head") or obj:FindFirstChildWhichIsA("BasePart") -- Tìm bất kỳ BasePart nào nếu không có Head
+                        if head and head:IsA("BasePart") then -- Ensure it's a valid part
+                            local currentDist = (head.Position - hrp.Position).Magnitude
+                            if currentDist < dist then
+                                dist = currentDist
+                                closest = head
+                            end
                         end
                     end
 				end
 			end
 			if closest then
-				-- Fix: Corrected 'hr' to 'hrp'
-				hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(closest.Position.X, hrp.Position.Y, closest.Position.Z))
+                -- Xoay nhân vật một cách mượt mà trên mặt phẳng ngang
+                local lookVector = (closest.Position - hrp.Position).Unit
+                local targetCFrame = CFrame.lookAt(hrp.Position, hrp.Position + Vector3.new(lookVector.X, 0, lookVector.Z))
+                hrp.CFrame = targetCFrame
 			end
 		end)
 	end
