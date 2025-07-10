@@ -7,9 +7,9 @@ local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local hrp = character:WaitForChild("HumanoidRootPart")
+local character = nil
+local humanoid = nil
+local hrp = nil
 local camera = Workspace.CurrentCamera
 
 -- Biến mới cho góc nhìn thứ ba
@@ -21,34 +21,46 @@ local zoomSpeed = 2        -- Tốc độ zoom khi cuộn chuột
 -- Biến mới cho xoay camera tự do
 local cameraCFrame = camera.CFrame -- Lưu trữ CFrame hiện tại của camera khi bật chế độ scriptable
 local rotationSpeed = 0.2 -- Tốc độ xoay camera
+local cameraSmoothness = 0.2 -- Độ mượt của camera (0.01 đến 1, càng nhỏ càng mượt) - có thể dùng cho Lerp nếu muốn camera không quá "nhạy"
 
--- Update character when respawning
-local function updateCharacter()
-	character = player.Character or player.CharacterAdded:Wait()
+-- Hàm cập nhật tham chiếu nhân vật và áp dụng lại các tính năng
+local function updateCharacterReferences()
+	character = player.Character
+	if not character then
+		character = player.CharacterAdded:Wait()
+	end
 	humanoid = character:WaitForChild("Humanoid")
 	hrp = character:WaitForChild("HumanoidRootPart")
-	if speedEnabled then humanoid.WalkSpeed = 30 end
+
+	-- Áp dụng lại tốc độ nếu đang bật
+	if speedEnabled then
+		humanoid.WalkSpeed = 30
+	else
+		humanoid.WalkSpeed = 16
+	end
+
+	-- Thiết lập CameraType
 	if thirdPersonEnabled then
 		camera.CameraType = Enum.CameraType.Scriptable
-		-- Cập nhật lại cameraCFrame khi nhân vật respawn để nó không bị lạc
-		if hrp then
-			cameraCFrame = CFrame.new(hrp.Position + currentCameraOffset) * CFrame.Angles(0, math.rad(90), 0) -- Đặt camera ngay phía sau nhân vật khi respawn
-		else
-			cameraCFrame = camera.CFrame -- Giữ nguyên nếu không tìm thấy hrp
-		end
+		-- Khởi tạo cameraCFrame khi nhân vật hồi sinh hoặc khi lần đầu bật tính năng
+		cameraCFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(player.Character.HumanoidRootPart.Orientation.Y), 0) * CFrame.new(currentCameraOffset)
 	else
 		camera.CameraType = Enum.CameraType.Custom
 	end
 end
-player.CharacterAdded:Connect(updateCharacter)
 
--- GUI (GIỮ NGUYÊN NHƯ SCRIPT GỐC BẠN ĐÃ CUNG CẤP)
+-- Kết nối sự kiện khi nhân vật được thêm vào (hồi sinh)
+player.CharacterAdded:Connect(updateCharacterReferences)
+-- Gọi lần đầu để khởi tạo khi script chạy
+updateCharacterReferences()
+
+-- GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DeadRailUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Credit (DÒNG CHỮ "script by Long dzz" GIỮ NGUYÊN)
+-- Credit
 local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(0, 160, 0, 25)
 creditLabel.Position = UDim2.new(0, 10, 0, 10)
@@ -158,11 +170,12 @@ thirdPersonBtn.MouseButton1Click:Connect(function()
 	if thirdPersonEnabled then
 		camera.CameraType = Enum.CameraType.Scriptable
 		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
-		-- Khởi tạo CFrame của camera dựa trên vị trí nhân vật khi bật
+		-- Khởi tạo cameraCFrame khi bật chế độ
 		if hrp then
-			cameraCFrame = CFrame.new(hrp.Position + currentCameraOffset) * CFrame.Angles(0, math.rad(90), 0) -- Đặt camera ở một vị trí ban đầu phía sau nhân vật
+			-- Khởi tạo camera phía sau và hơi cao hơn nhân vật, hướng về phía trước nhân vật
+			cameraCFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(hrp.Orientation.Y), 0) * CFrame.new(currentCameraOffset)
 		else
-			cameraCFrame = camera.CFrame -- Fallback nếu không có hrp
+			cameraCFrame = camera.CFrame -- Giữ nguyên nếu không tìm thấy hrp (trường hợp hiếm)
 		end
 	else
 		camera.CameraType = Enum.CameraType.Custom
@@ -177,46 +190,63 @@ toggleBtn.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
 
---- **CÁC TÍNH NĂNG MỚI ĐƯỢC CHỈNH SỬA Ở ĐÂY** ---
+--- **CÁC TÍNH NĂNG CHÍNH** ---
 
 -- Xử lý Zoom camera khi cuộn chuột và Xoay camera khi di chuyển chuột
 UserInputService.InputChanged:Connect(function(input, gameProcessedEvent)
 	if thirdPersonEnabled then
 		if input.UserInputType == Enum.UserInputType.MouseWheel then
-			-- Tăng hoặc giảm khoảng cách zoom dựa trên cuộn chuột
-			local zoomDirection = Vector3.new(0, 0, -input.Position.Z * zoomSpeed) -- Lấy hướng zoom theo trục Z của camera
-			local newCameraCFrame = cameraCFrame * CFrame.new(zoomDirection)
+			-- Điều chỉnh khoảng cách zoom theo trục Z cục bộ của camera
+			local zoomAmount = -input.Position.Z * zoomSpeed
+			local newPosition = cameraCFrame.Position + cameraCFrame.LookVector * zoomAmount
 
-			-- Giới hạn khoảng cách zoom (được ước tính)
-			local distToHRP = (newCameraCFrame.Position - hrp.Position).Magnitude
-			if distToHRP >= minZoomDistance and distToHRP <= maxZoomDistance then
-				cameraCFrame = newCameraCFrame
+			-- Tính toán khoảng cách từ vị trí mới đến HumanoidRootPart để giới hạn zoom
+			if hrp then
+				local distToHRP = (newPosition - hrp.Position).Magnitude
+				if distToHRP >= minZoomDistance and distToHRP <= maxZoomDistance then
+					cameraCFrame = CFrame.new(newPosition) * cameraCFrame.Rotation
+				end
+			else
+				-- Nếu không có hrp, chỉ di chuyển camera mà không giới hạn
+				cameraCFrame = CFrame.new(newPosition) * cameraCFrame.Rotation
 			end
-
-		elseif input.UserInputType == Enum.UserInputType.MouseMovement and not gameProcessedEvent then
-			-- Xoay camera khi di chuyển chuột (Yaw và Pitch)
-			local deltaX = -input.Delta.X * rotationSpeed
-			local deltaY = -input.Delta.Y * rotationSpeed
-
-			-- Xoay camera quanh trục Y (Yaw) và trục X cục bộ (Pitch)
-			cameraCFrame = cameraCFrame * CFrame.Angles(0, deltaX, 0)
-			-- Giới hạn góc pitch: Lấy góc pitch hiện tại, điều chỉnh, rồi áp dụng lại
-			local currentPitch, _, _ = cameraCFrame:ToOrientation()
-			local newPitch = currentPitch + deltaY
-			newPitch = math.clamp(newPitch, math.rad(-80), math.rad(80))
-
-			-- Tạo CFrame mới với pitch đã giới hạn (giữ nguyên yaw và roll)
-			local _, currentYaw, currentRoll = cameraCFrame:ToOrientation()
-			local correctedCFrame = CFrame.new(cameraCFrame.Position) * CFrame.Angles(newPitch, currentYaw, currentRoll)
 			
-			cameraCFrame = correctedCFrame
+		elseif input.UserInputType == Enum.UserInputType.MouseMovement and not gameProcessedEvent then
+			-- Xoay camera khi di chuyển chuột
+			local deltaX = -input.Delta.X * rotationSpeed -- Yaw (ngang)
+			local deltaY = -input.Delta.Y * rotationSpeed -- Pitch (dọc)
+
+			-- Áp dụng Yaw (xoay quanh trục Y thế giới)
+			cameraCFrame = CFrame.new(cameraCFrame.Position) * CFrame.Angles(0, deltaX, 0) * cameraCFrame.Rotation
+
+			-- Áp dụng Pitch (xoay quanh trục X cục bộ của camera) và giới hạn góc
+			local _, currentYaw, currentRoll = cameraCFrame:ToOrientation() -- Lấy các góc hiện tại
+			local newPitch = currentYaw + deltaY -- Note: ToOrientation returns (Roll, Yaw, Pitch) or (X, Y, Z) sometimes depending on CFrame.Angles order. We want to apply to local X axis.
+			
+			-- Correct way to apply local pitch rotation while preserving other rotations
+			local lookVector = cameraCFrame.LookVector
+			local rightVector = cameraCFrame.RightVector
+			local upVector = cameraCFrame.UpVector
+			
+			-- Calculate new pitch
+			local currentPitchAngle = math.asin(-lookVector.Y) -- Calculate pitch from lookVector's Y component
+			local desiredPitchAngle = math.clamp(currentPitchAngle + deltaY, math.rad(-80), math.rad(80))
+			
+			-- Rotate around the right vector
+			cameraCFrame = CFrame.new(cameraCFrame.Position) * CFrame.fromMatrix(
+				cameraCFrame.Position, 
+				cameraCFrame.RightVector, 
+				cameraCFrame.UpVector, 
+				cameraCFrame.LookVector
+			) * CFrame.Angles(desiredPitchAngle - currentPitchAngle, 0, 0)
 		end
 	end
 end)
 
 
--- RunService effects (Cập nhật vị trí camera tự do)
+-- RunService effects (Cập nhật vị trí camera và Noclip)
 RunService.Stepped:Connect(function()
+	-- Noclip
 	if noclipEnabled and character then
 		for _, part in ipairs(character:GetDescendants()) do
 			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" and part.CanCollide then
@@ -225,39 +255,41 @@ RunService.Stepped:Connect(function()
 		end
 	end
 
+	-- Third Person Camera (tự do)
 	if thirdPersonEnabled and hrp then
-		-- Camera không còn bám theo hrp nữa mà cập nhật trực tiếp từ cameraCFrame đã tính toán
-		-- Giờ chỉ cần kiểm tra va chạm để đẩy camera ra khỏi vật thể
+		local desiredCFrame = cameraCFrame
+
+		-- Xử lý tránh vật cản cho camera tự do:
+		-- Bắn tia từ vị trí của nhân vật đến vị trí mong muốn của camera.
+		-- Nếu có vật cản, đẩy camera lùi lại để tránh vật cản đó.
 		local rayParams = RaycastParams.new()
 		rayParams.FilterDescendantsInstances = { character }
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-		local offsetFromPlayer = cameraCFrame.Position - hrp.Position
-		local raycastDir = offsetFromPlayer.Unit * offsetFromPlayer.Magnitude
-		local raycastOrigin = hrp.Position -- Bắn tia từ nhân vật đến vị trí camera
+		local directionToCamera = desiredCFrame.Position - hrp.Position
+		local rayLength = directionToCamera.Magnitude
+		local rayDirection = directionToCamera.Unit * rayLength
 
-		local result = Workspace:Raycast(raycastOrigin, raycastDir, rayParams)
+		local result = Workspace:Raycast(hrp.Position, rayDirection, rayParams)
 
-		local finalCameraCFrame = cameraCFrame
 		if result then
-			-- Nếu có vật cản giữa nhân vật và camera, di chuyển camera ra xa vật cản
-			-- Đẩy camera lùi lại một chút từ điểm va chạm, giữ nguyên hướng nhìn
-			finalCameraCFrame = CFrame.new(result.Position - raycastDir.Unit * 2) * cameraCFrame.Rotation
+			-- Nếu có vật cản, đặt camera tại điểm va chạm, lùi lại một chút
+			-- và giữ nguyên hướng xoay của camera
+			desiredCFrame = CFrame.new(result.Position - rayDirection.Unit * 2) * cameraCFrame.Rotation
 		end
 		
-		-- Cập nhật CFrame của camera. Không cần Lerp nếu muốn camera phản ứng tức thì với chuột.
-		-- Nếu muốn mượt hơn thì dùng Lerp: camera.CFrame = camera.CFrame:Lerp(finalCameraCFrame, cameraSmoothness)
-		camera.CFrame = finalCameraCFrame
+		-- Cập nhật CFrame của camera.
+		-- Dùng Lerp để làm mượt chuyển động nếu camera bị đẩy ra khỏi vật cản.
+		-- Có thể điều chỉnh cameraSmoothness hoặc bỏ Lerp nếu muốn phản hồi tức thì.
+		camera.CFrame = camera.CFrame:Lerp(desiredCFrame, cameraSmoothness)
 	end
 end)
 
---- **KẾT THÚC PHẦN CHỈNH SỬA TÍNH NĂNG** ---
-
--- Auto Pickup
+--- **Auto Pickup** ---
 spawn(function()
 	while task.wait(0.1) do
 		pcall(function()
-			if not hrp then return end
+			if not hrp then return end -- Đảm bảo hrp tồn tại
 			for _, item in ipairs(Workspace:GetDescendants()) do
 				if item:IsA("BasePart") and item.Name:lower():find("pickup") and (item.Position - hrp.Position).Magnitude < 10 then
 					firetouchinterest(hrp, item, 0)
@@ -269,7 +301,7 @@ spawn(function()
 	end
 end)
 
--- ESP for zombies
+--- **ESP for zombies** ---
 local function createESP(part)
 	if not part or not part:IsA("BasePart") or part:FindFirstChild("BoxESP") then return end
 	if not part.Parent or not part.Parent:IsA("Model") or not part.Parent:FindFirstChildOfClass("Humanoid") then return end
@@ -285,6 +317,7 @@ local function createESP(part)
 	box.Parent = part
 end
 
+-- Tạo ESP cho các đối tượng đã tồn tại
 for _, obj in ipairs(Workspace:GetDescendants()) do
 	if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj ~= character then
 		local head = obj:FindFirstChild("Head") or obj:FindFirstChildWhichIsA("BasePart")
@@ -292,15 +325,16 @@ for _, obj in ipairs(Workspace:GetDescendants()) do
 	end
 end
 
+-- Tạo ESP cho các đối tượng mới được thêm vào
 Workspace.DescendantAdded:Connect(function(obj)
 	if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj ~= character then
-		task.wait(0.2)
+		task.wait(0.2) -- Đợi một chút để model được tải hoàn chỉnh
 		local head = obj:FindFirstChild("Head") or obj:FindFirstChildWhichIsA("BasePart")
 		if head then createESP(head) end
 	end
 end)
 
--- Silent Aim Hook
+--- **Silent Aim Hook (Đã cải tiến cho mục tiêu đa dạng)** ---
 local mt = getrawmetatable(game)
 local old = mt.__namecall
 setreadonly(mt, false)
@@ -309,27 +343,50 @@ mt.__namecall = newcclosure(function(self, ...)
 	local args = { ... }
 	local method = getnamecallmethod()
 	if method == "Raycast" and autoAimEnabled then
-		local origin = args[2]
-		local direction = args[3]
-		local closest, dist = nil, 100
-		for _, obj in ipairs(Workspace:GetDescendants()) do
-			if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj ~= character then
-				local hum = obj:FindFirstChildOfClass("Humanoid")
-				if hum and hum.Health > 0 then
-					local head = obj:FindFirstChild("Head") or obj:FindFirstChildWhichIsA("BasePart")
-					if head then
-						local d = (head.Position - origin).Magnitude
-						if d < dist then
-							dist = d
-							closest = head
-						end
+		-- Đảm bảo đủ số lượng đối số và loại đối số phù hợp
+		if type(args[2]) == "userdata" and type(args[3]) == "userdata" then
+			local origin = args[2]
+			local direction = args[3]
+			local closestTargetPart = nil
+			local closestDistance = math.huge -- Khởi tạo khoảng cách rất lớn
+
+			-- Hàm kiểm tra xem một BasePart có phải là mục tiêu hợp lệ không
+			local function isValidTarget(part)
+				if not part:IsA("BasePart") or not part.Parent or not part.Parent:IsA("Model") then return false end
+				local parentModel = part.Parent
+				
+				-- Bỏ qua nhân vật của người chơi
+				if parentModel == character then return false end 
+				
+				local targetHumanoid = parentModel:FindFirstChildOfClass("Humanoid")
+				-- Kiểm tra xem có Humanoid và còn sống không
+				if targetHumanoid and targetHumanoid.Health > 0 then
+					return true
+				end
+				-- Có thể thêm các điều kiện khác ở đây cho "mục tiêu đa dạng" hơn
+				-- Ví dụ: if parentModel.Name == "SomeTargetObject" then return true end
+				-- Hoặc: if part.CanCollide and part.Transparency < 0.5 and part.Name ~= "Baseplate" then return true end
+				return false
+			end
+
+			-- Duyệt qua tất cả descendants trong Workspace để tìm mục tiêu
+			for _, descendant in ipairs(Workspace:GetDescendants()) do
+				if isValidTarget(descendant) then
+					local targetPosition = descendant.Position
+					local distanceToTarget = (targetPosition - origin).Magnitude
+
+					if distanceToTarget < closestDistance then
+						closestDistance = distanceToTarget
+						closestTargetPart = descendant
 					end
 				end
 			end
-		end
-		if closest then
-			args[3] = (closest.Position - origin).Unit * direction.Magnitude
-			return old(self, unpack(args))
+			
+			-- Nếu tìm thấy mục tiêu gần nhất, điều chỉnh hướng Raycast
+			if closestTargetPart then
+				args[3] = (closestTargetPart.Position - origin).Unit * direction.Magnitude
+				return old(self, unpack(args))
+			end
 		end
 	end
 	return old(self, ...)
