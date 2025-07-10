@@ -16,7 +16,7 @@ local quickStealEnabled = false
 
 local stealRange = 25
 local lastStealAttemptTime = 0
-local stealActionCooldown = 1
+local stealActionCooldown = 0.5
 
 -- GUI
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
@@ -104,31 +104,25 @@ end)
 
 -- Noclip
 RunService.Stepped:Connect(function()
-	if noclipEnabled then
-		for _, p in ipairs(character:GetDescendants()) do
-			if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
-				p.CanCollide = false
+	if noclipEnabled and character then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+				part.CanCollide = false
 			end
 		end
 	end
 end)
 
--- Quick Steal
+-- Auto Collect (không teleport)
 local function quickSteal()
 	local remote = ReplicatedStorage:FindFirstChild("StealPet", true)
 	if not remote or not remote:IsA("RemoteEvent") then return end
-
-	local origin = hrp.CFrame
 
 	for _, obj in pairs(Workspace:GetDescendants()) do
 		if obj.Name == "StealableItem" then
 			local part = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
 			if part and (part.Position - hrp.Position).Magnitude <= stealRange then
-				hrp.CFrame = CFrame.new(part.Position + Vector3.new(0,1,0))
-				task.wait(0.03)
 				remote:FireServer(obj)
-				task.wait(0.05)
-				hrp.CFrame = origin
 			end
 		end
 	end
@@ -146,8 +140,7 @@ end)
 
 -- ESP bằng Box
 local function createESP(part)
-	if not part:IsA("BasePart") then return end
-	if part:FindFirstChild("BoxESP") then return end
+	if not part:IsA("BasePart") or part:FindFirstChild("BoxESP") then return end
 	local box = Instance.new("BoxHandleAdornment")
 	box.Name = "BoxESP"
 	box.Adornee = part
