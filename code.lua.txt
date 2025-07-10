@@ -4,6 +4,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
 
 local walkSpeedDefault = 16
 local walkSpeedBoost = 28
@@ -14,10 +17,6 @@ local quickStealEnabled = false
 local stealRange = 15
 local lastStealAttemptTime = 0
 local stealActionCooldown = 1
-
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local hrp = character:WaitForChild("HumanoidRootPart")
 
 -- GUI setup
 local screenGui = Instance.new("ScreenGui")
@@ -82,12 +81,12 @@ quickStealBtn.TextColor3 = Color3.new(1, 1, 1)
 quickStealBtn.Parent = mainFrame
 Instance.new("UICorner", quickStealBtn)
 
--- GUI toggle logic
+-- Toggle GUI logic
 toggleGuiButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
 
--- Toggle speed + noclip
+-- Speed + Noclip Toggle
 local function updateSpeedNoclip(state)
 	speedEnabled = state
 	noclipEnabled = state
@@ -102,7 +101,7 @@ toggleSpeedNoclipBtn.MouseButton1Click:Connect(function()
 	updateSpeedNoclip(not speedEnabled)
 end)
 
--- Toggle Quick Steal
+-- Quick Steal Toggle
 quickStealBtn.MouseButton1Click:Connect(function()
 	quickStealEnabled = not quickStealEnabled
 	quickStealBtn.Text = "Cướp Nhanh: " .. (quickStealEnabled and "ON" or "OFF")
@@ -124,7 +123,7 @@ local function findNearestStealableTarget()
 	return closest
 end
 
--- Instant steal
+-- Perform steal
 local function performQuickSteal(target)
 	local remote = ReplicatedStorage:FindFirstChild("StealPet", true)
 	if remote and remote:IsA("RemoteEvent") then
@@ -150,10 +149,10 @@ task.spawn(function()
 end)
 
 -- Noclip mỗi frame
-RunService.Stepped:Connect(function()
-	if noclipEnabled then
-		for _, part in ipairs(character:GetDescendants()) do
-			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+RunService.Stepped:Connect(function(_, step)
+	if noclipEnabled and character then
+		for _, part in pairs(character:GetDescendants()) do
+			if part:IsA("BasePart") and part.CanCollide and part.Name ~= "HumanoidRootPart" then
 				part.CanCollide = false
 			end
 		end
@@ -165,7 +164,21 @@ player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = char:WaitForChild("Humanoid")
 	hrp = char:WaitForChild("HumanoidRootPart")
-	updateSpeedNoclip(speedEnabled)
+
+	-- Chờ nhân vật spawn xong rồi áp dụng lại trạng thái
+	task.delay(0.25, function()
+		if speedEnabled then
+			humanoid.WalkSpeed = walkSpeedBoost
+		end
+
+		if noclipEnabled then
+			for _, part in ipairs(character:GetDescendants()) do
+				if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+					part.CanCollide = false
+				end
+			end
+		end
+	end)
 end)
 
 -- AntiKick
@@ -182,5 +195,5 @@ if success and mt then
 	end)
 	setreadonly(mt, true)
 else
-	warn("Không thể chặn Kick (__namecall) - có thể đang bị sandbox.")
+	warn("Không thể chặn Kick (__namecall)")
 end
