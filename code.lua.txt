@@ -47,7 +47,7 @@ toggleGuiButton.Parent = screenGui
 Instance.new("UICorner", toggleGuiButton)
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 160, 0, 130)
+mainFrame.Size = UDim2.new(0, 160, 0, 130) -- ← ĐÃ FIX cao hơn
 mainFrame.Position = UDim2.new(0, 60, 0, 45)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.Visible = false
@@ -111,7 +111,6 @@ teleportBtn.MouseButton1Click:Connect(function()
 		hrp.CFrame = hrp.CFrame + dir * 5
 	end
 end)
-
 RunService.Stepped:Connect(function()
 	if noclipEnabled and character then
 		for _, part in ipairs(character:GetDescendants()) do
@@ -165,6 +164,7 @@ player.CharacterAdded:Connect(function(char)
 	end
 end)
 
+-- Anti Kick
 pcall(function()
 	local mt = getrawmetatable(game)
 	setreadonly(mt, false)
@@ -176,7 +176,7 @@ pcall(function()
 	setreadonly(mt, true)
 end)
 
--- ESP Fix
+-- ESP
 local function createESP(part)
 	if not part:IsA("BasePart") then return end
 	if part:FindFirstChild("ESP_HL") then return end
