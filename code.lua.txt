@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -50,7 +51,7 @@ Instance.new("UICorner", toggleGuiButton)
 
 -- Main panel
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 160, 0, 90)
+mainFrame.Size = UDim2.new(0, 160, 0, 130)
 mainFrame.Position = UDim2.new(0, 60, 0, 45)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.Visible = false
@@ -81,7 +82,19 @@ quickStealBtn.TextColor3 = Color3.new(1, 1, 1)
 quickStealBtn.Parent = mainFrame
 Instance.new("UICorner", quickStealBtn)
 
--- Toggle GUI logic
+-- Dịch chuyển button
+local tpStepBtn = Instance.new("TextButton")
+tpStepBtn.Size = UDim2.new(1, -20, 0, 30)
+tpStepBtn.Position = UDim2.new(0, 10, 0, 90)
+tpStepBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+tpStepBtn.Text = "Dịch Chuyển Xuyên Tường"
+tpStepBtn.TextScaled = true
+tpStepBtn.Font = Enum.Font.GothamBold
+tpStepBtn.TextColor3 = Color3.new(1, 1, 1)
+tpStepBtn.Parent = mainFrame
+Instance.new("UICorner", tpStepBtn)
+
+-- GUI toggle logic
 toggleGuiButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
@@ -106,6 +119,19 @@ quickStealBtn.MouseButton1Click:Connect(function()
 	quickStealEnabled = not quickStealEnabled
 	quickStealBtn.Text = "Cướp Nhanh: " .. (quickStealEnabled and "ON" or "OFF")
 	quickStealBtn.BackgroundColor3 = quickStealEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 100, 0)
+end)
+
+-- Dịch chuyển từng bước
+local function smoothNoclipStep()
+	if character and hrp then
+		local direction = workspace.CurrentCamera.CFrame.LookVector
+		local step = direction * 3
+		hrp.CFrame = hrp.CFrame + step
+	end
+end
+
+tpStepBtn.MouseButton1Click:Connect(function()
+	smoothNoclipStep()
 end)
 
 -- Find nearest target
@@ -165,7 +191,6 @@ player.CharacterAdded:Connect(function(char)
 	humanoid = char:WaitForChild("Humanoid")
 	hrp = char:WaitForChild("HumanoidRootPart")
 
-	-- Chờ nhân vật spawn xong rồi áp dụng lại trạng thái
 	task.delay(0.25, function()
 		if speedEnabled then
 			humanoid.WalkSpeed = walkSpeedBoost
