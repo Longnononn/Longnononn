@@ -18,13 +18,14 @@ local stealRange = 15
 local lastStealAttemptTime = 0
 local stealActionCooldown = 1
 
--- GUI
+-- GUI setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SysCoreUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local creditLabel = Instance.new("TextLabel", screenGui)
+-- Credit
+local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(0, 160, 0, 25)
 creditLabel.Position = UDim2.new(0, 10, 0, 10)
 creditLabel.BackgroundTransparency = 1
@@ -32,8 +33,10 @@ creditLabel.Text = "script by Long dzz"
 creditLabel.TextColor3 = Color3.new(1, 1, 1)
 creditLabel.Font = Enum.Font.Gotham
 creditLabel.TextScaled = true
+creditLabel.Parent = screenGui
 
-local toggleGuiButton = Instance.new("TextButton", screenGui)
+-- Toggle GUI button
+local toggleGuiButton = Instance.new("TextButton")
 toggleGuiButton.Size = UDim2.new(0, 40, 0, 40)
 toggleGuiButton.Position = UDim2.new(0, 10, 0, 45)
 toggleGuiButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
@@ -42,80 +45,67 @@ toggleGuiButton.TextScaled = true
 toggleGuiButton.TextColor3 = Color3.new(1, 1, 1)
 toggleGuiButton.BorderSizePixel = 0
 toggleGuiButton.Font = Enum.Font.GothamBlack
+toggleGuiButton.Parent = screenGui
 Instance.new("UICorner", toggleGuiButton)
 
-local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 160, 0, 130)
+-- Main panel
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 160, 0, 90)
 mainFrame.Position = UDim2.new(0, 60, 0, 45)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.Visible = false
+mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame)
 
-local speedBtn = Instance.new("TextButton", mainFrame)
-speedBtn.Size = UDim2.new(1, -20, 0, 30)
-speedBtn.Position = UDim2.new(0, 10, 0, 10)
-speedBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-speedBtn.Text = "Speed+Noclip: OFF"
-speedBtn.TextScaled = true
-speedBtn.Font = Enum.Font.GothamBold
-speedBtn.TextColor3 = Color3.new(1, 1, 1)
-Instance.new("UICorner", speedBtn)
+-- Speed+Noclip button
+local toggleSpeedNoclipBtn = Instance.new("TextButton")
+toggleSpeedNoclipBtn.Size = UDim2.new(1, -20, 0, 30)
+toggleSpeedNoclipBtn.Position = UDim2.new(0, 10, 0, 10)
+toggleSpeedNoclipBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+toggleSpeedNoclipBtn.Text = "Speed+Noclip: OFF"
+toggleSpeedNoclipBtn.TextScaled = true
+toggleSpeedNoclipBtn.Font = Enum.Font.GothamBold
+toggleSpeedNoclipBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleSpeedNoclipBtn.Parent = mainFrame
+Instance.new("UICorner", toggleSpeedNoclipBtn)
 
-local stealBtn = Instance.new("TextButton", mainFrame)
-stealBtn.Size = UDim2.new(1, -20, 0, 30)
-stealBtn.Position = UDim2.new(0, 10, 0, 50)
-stealBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
-stealBtn.Text = "Cướp Nhanh: OFF"
-stealBtn.TextScaled = true
-stealBtn.Font = Enum.Font.GothamBold
-stealBtn.TextColor3 = Color3.new(1, 1, 1)
-Instance.new("UICorner", stealBtn)
+-- Quick Steal button
+local quickStealBtn = Instance.new("TextButton")
+quickStealBtn.Size = UDim2.new(1, -20, 0, 30)
+quickStealBtn.Position = UDim2.new(0, 10, 0, 50)
+quickStealBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+quickStealBtn.Text = "Cướp Nhanh: OFF"
+quickStealBtn.TextScaled = true
+quickStealBtn.Font = Enum.Font.GothamBold
+quickStealBtn.TextColor3 = Color3.new(1, 1, 1)
+quickStealBtn.Parent = mainFrame
+Instance.new("UICorner", quickStealBtn)
 
-local tpBtn = Instance.new("TextButton", mainFrame)
-tpBtn.Size = UDim2.new(1, -20, 0, 30)
-tpBtn.Position = UDim2.new(0, 10, 0, 90)
-tpBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
-tpBtn.Text = "Dịch Chuyển Xuyên Tường"
-tpBtn.TextScaled = true
-tpBtn.Font = Enum.Font.GothamBold
-tpBtn.TextColor3 = Color3.new(1, 1, 1)
-Instance.new("UICorner", tpBtn)
-
--- Toggle UI
+-- Toggle GUI
 toggleGuiButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
 
--- Toggle Speed+Noclip
-speedBtn.MouseButton1Click:Connect(function()
+-- Toggle Speed + Noclip
+toggleSpeedNoclipBtn.MouseButton1Click:Connect(function()
 	speedEnabled = not speedEnabled
 	noclipEnabled = speedEnabled
-	if humanoid then
-		humanoid.WalkSpeed = speedEnabled and walkSpeedBoost or walkSpeedDefault
-	end
-	speedBtn.Text = "Speed+Noclip: " .. (speedEnabled and "ON" or "OFF")
-	speedBtn.BackgroundColor3 = speedEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0)
+	humanoid.WalkSpeed = speedEnabled and walkSpeedBoost or walkSpeedDefault
+	toggleSpeedNoclipBtn.Text = "Speed+Noclip: " .. (speedEnabled and "ON" or "OFF")
+	toggleSpeedNoclipBtn.BackgroundColor3 = speedEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
 -- Toggle Quick Steal
-stealBtn.MouseButton1Click:Connect(function()
+quickStealBtn.MouseButton1Click:Connect(function()
 	quickStealEnabled = not quickStealEnabled
-	stealBtn.Text = "Cướp Nhanh: " .. (quickStealEnabled and "ON" or "OFF")
-	stealBtn.BackgroundColor3 = quickStealEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 100, 0)
+	quickStealBtn.Text = "Cướp Nhanh: " .. (quickStealEnabled and "ON" or "OFF")
+	quickStealBtn.BackgroundColor3 = quickStealEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 100, 0)
 end)
 
--- Manual TP
-tpBtn.MouseButton1Click:Connect(function()
-	if hrp then
-		local dir = Workspace.CurrentCamera.CFrame.LookVector
-		hrp.CFrame = hrp.CFrame + dir * 3
-	end
-end)
-
--- Noclip real time
+-- Noclip mỗi frame
 RunService.Stepped:Connect(function()
 	if noclipEnabled and character then
-		for _, part in pairs(character:GetDescendants()) do
+		for _, part in ipairs(character:GetDescendants()) do
 			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
 				part.CanCollide = false
 			end
@@ -123,7 +113,7 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
--- Perform auto steal with teleport trick
+-- Perform quick steal
 local function performQuickSteal()
 	if not hrp then return end
 	local remote = ReplicatedStorage:FindFirstChild("StealPet", true)
@@ -147,7 +137,7 @@ local function performQuickSteal()
 	end
 end
 
--- Auto steal loop
+-- Auto Steal loop
 task.spawn(function()
 	while true do
 		if quickStealEnabled and tick() - lastStealAttemptTime >= stealActionCooldown then
@@ -158,7 +148,7 @@ task.spawn(function()
 	end
 end)
 
--- Handle respawn
+-- Handle Respawn
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = char:WaitForChild("Humanoid")
@@ -169,7 +159,7 @@ player.CharacterAdded:Connect(function(char)
 	end
 end)
 
--- Anti-Kick
+-- Anti Kick
 pcall(function()
 	local mt = getrawmetatable(game)
 	setreadonly(mt, false)
@@ -182,7 +172,8 @@ pcall(function()
 	end)
 	setreadonly(mt, true)
 end)
--- ESP Highlight Stealable Items
+
+-- ESP Highlight cho StealableItem
 local function createESP(target)
 	local hl = Instance.new("Highlight")
 	hl.Name = "ESP_HL"
@@ -201,7 +192,6 @@ local function applyESPToAll()
 	end
 end
 
--- Theo dõi item mới được thêm vào Workspace
 Workspace.DescendantAdded:Connect(function(desc)
 	if desc:IsA("BasePart") and desc.Name == "StealableItem" then
 		task.wait(0.1)
@@ -211,5 +201,4 @@ Workspace.DescendantAdded:Connect(function(desc)
 	end
 end)
 
--- Chạy ban đầu
 applyESPToAll()
