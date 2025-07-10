@@ -10,6 +10,15 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
 
+-- Function to update character and humanoid on respawn
+local function updateCharacter()
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid")
+    hrp = character:WaitForChild("HumanoidRootPart")
+end
+
+player.CharacterAdded:Connect(updateCharacter)
+
 -- GUI
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DeadRailUI"
@@ -41,7 +50,7 @@ Instance.new("UICorner", toggleBtn)
 
 -- Main panel
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 160, 0, 90)
+mainFrame.Size = UDim2.new(0, 160, 0, 130) -- Increased height for more buttons if needed later
 mainFrame.Position = UDim2.new(0, 60, 0, 45)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.Visible = false
@@ -72,6 +81,19 @@ noclipBtn.TextColor3 = Color3.new(1, 1, 1)
 noclipBtn.Parent = mainFrame
 Instance.new("UICorner", noclipBtn)
 
+-- Auto Aim button
+local autoAimBtn = Instance.new("TextButton")
+autoAimBtn.Size = UDim2.new(1, -20, 0, 30)
+autoAimBtn.Position = UDim2.new(0, 10, 0, 90)
+autoAimBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+autoAimBtn.Text = "Auto Aim: OFF"
+autoAimBtn.TextScaled = true
+autoAimBtn.Font = Enum.Font.GothamBold
+autoAimBtn.TextColor3 = Color3.new(1, 1, 1)
+autoAimBtn.Parent = mainFrame
+Instance.new("UICorner", autoAimBtn)
+
+
 -- Toggle visibility
 toggleBtn.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
@@ -80,10 +102,11 @@ end)
 -- Feature toggles
 local speedEnabled = false
 local noclipEnabled = false
+local autoAimEnabled = false -- New toggle for Auto Aim
 
 speedBtn.MouseButton1Click:Connect(function()
 	speedEnabled = not speedEnabled
-	if humanoid then
+	if humanoid then -- Ensure humanoid exists
 		humanoid.WalkSpeed = speedEnabled and 30 or 16
 	end
 	speedBtn.Text = "Speed: " .. (speedEnabled and "ON" or "OFF")
@@ -96,10 +119,18 @@ noclipBtn.MouseButton1Click:Connect(function()
 	noclipBtn.BackgroundColor3 = noclipEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(150, 0, 255)
 end)
 
+autoAimBtn.MouseButton1Click:Connect(function()
+    autoAimEnabled = not autoAimEnabled
+    autoAimBtn.Text = "Auto Aim: " .. (autoAimEnabled and "ON" or "OFF")
+    autoAimBtn.BackgroundColor3 = autoAimEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+end)
+
+
 RunService.Stepped:Connect(function()
 	if noclipEnabled and character then
+        -- Only disable collisions for player's character parts
 		for _, part in ipairs(character:GetDescendants()) do
-			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+			if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" and part.CanCollide then -- Only change if it's currently collidable
 				part.CanCollide = false
 			end
 		end
@@ -110,6 +141,7 @@ end)
 spawn(function()
 	while task.wait(0.1) do
 		pcall(function()
+            if not hrp then return end -- Ensure hrp exists
 			for _, item in ipairs(Workspace:GetDescendants()) do
 				if item:IsA("BasePart") and item.Name:lower():find("pickup") and (item.Position - hrp.Position).Magnitude < 10 then
 					firetouchinterest(hrp, item, 0)
@@ -123,21 +155,27 @@ end)
 
 -- Auto Aim at Zombie
 spawn(function()
-	while task.wait(0.1) do
+	while task.wait(0.05) do -- Slightly faster update for smoother aim
 		pcall(function()
-			local closest, dist = nil, 100
+            if not autoAimEnabled or not hrp then return end -- Check if enabled and hrp exists
+
+			local closest, dist = nil, 100 -- Limit range to 100 studs
 			for _, obj in ipairs(Workspace:GetDescendants()) do
-				if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj ~= character then
+                -- Check if it's a model with Humanoid and not the player's own character
+				if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj ~= character then
 					local head = obj:FindFirstChild("Head")
-					if head and (head.Position - hrp.Position).Magnitude < dist then
-						dist = (head.Position - hrp.Position).Magnitude
-						closest = head
-					end
+                    if head and head:IsA("BasePart") then -- Ensure it's a valid part
+                        local currentDist = (head.Position - hrp.Position).Magnitude
+                        if currentDist < dist then
+                            dist = currentDist
+                            closest = head
+                        end
+                    end
 				end
 			end
 			if closest then
-				hr
-p.CFrame = CFrame.new(hrp.Position, Vector3.new(closest.Position.X, hrp.Position.Y, closest.Position.Z))
+				-- Fix: Corrected 'hr' to 'hrp'
+				hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(closest.Position.X, hrp.Position.Y, closest.Position.Z))
 			end
 		end)
 	end
@@ -145,7 +183,10 @@ end)
 
 -- ESP for Zombie
 local function createESP(part)
-	if not part:IsA("BasePart") or part:FindFirstChild("BoxESP") then return end
+	if not part or not part:IsA("BasePart") or part:FindFirstChild("BoxESP") then return end
+    -- Check if parent is a model and contains a humanoid (to ensure it's a character)
+    if not part.Parent or not part.Parent:IsA("Model") or not part.Parent:FindFirstChildOfClass("Humanoid") then return end
+
 	local box = Instance.new("BoxHandleAdornment")
 	box.Name = "BoxESP"
 	box.Adornee = part
@@ -157,8 +198,9 @@ local function createESP(part)
 	box.Parent = part
 end
 
+-- Initial scan for existing zombies
 for _, obj in ipairs(Workspace:GetDescendants()) do
-	if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj ~= character then
+	if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj ~= character then
 		local head = obj:FindFirstChild("Head") or obj:FindFirstChildWhichIsA("BasePart")
 		if head then
 			createESP(head)
@@ -166,8 +208,10 @@ for _, obj in ipairs(Workspace:GetDescendants()) do
 	end
 end
 
+-- Connect to DescendantAdded for new zombies
 Workspace.DescendantAdded:Connect(function(obj)
-	if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj ~= character then
+	if obj:IsA("Model") and obj:FindFirstChildOfClass("Humanoid") and obj ~= character then
+		-- Give a small delay to ensure all parts are loaded
 		task.wait(0.2)
 		local head = obj:FindFirstChild("Head") or obj:FindFirstChildWhichIsA("BasePart")
 		if head then
