@@ -83,7 +83,9 @@ local noclipEnabled = false
 
 speedBtn.MouseButton1Click:Connect(function()
 	speedEnabled = not speedEnabled
-	humanoid.WalkSpeed = speedEnabled and 30 or 16
+	if humanoid then
+		humanoid.WalkSpeed = speedEnabled and 30 or 16
+	end
 	speedBtn.Text = "Speed: " .. (speedEnabled and "ON" or "OFF")
 	speedBtn.BackgroundColor3 = speedEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 150, 0)
 end)
@@ -106,36 +108,38 @@ end)
 
 -- Auto Pickup Items
 spawn(function()
-	while true do
-		for _, item in ipairs(Workspace:GetDescendants()) do
-			if item:IsA("BasePart") and item.Name:lower():find("pickup") and (item.Position - hrp.Position).Magnitude < 10 then
-				firetouchinterest(hrp, item, 0)
-				task.wait()
-				firetouchinterest(hrp, item, 1)
+	while task.wait(0.1) do
+		pcall(function()
+			for _, item in ipairs(Workspace:GetDescendants()) do
+				if item:IsA("BasePart") and item.Name:lower():find("pickup") and (item.Position - hrp.Position).Magnitude < 10 then
+					firetouchinterest(hrp, item, 0)
+					task.wait()
+					firetouchinterest(hrp, item, 1)
+				end
 			end
-		end
-		task.wait(0.1)
+		end)
 	end
 end)
 
 -- Auto Aim at Zombie
 spawn(function()
-	while true do
-		local closest, dist = nil, 100
-		for _, obj in ipairs(Workspace:GetDescendants()) do
-			if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj ~= character then
-				local head = obj:FindFirstChild("Head")
-				if head and (head.Position - hrp.Position).Magnitude < dist then
-					dist = (head.Position - hrp.Position).Magnitude
-					closest = head
+	while task.wait(0.1) do
+		pcall(function()
+			local closest, dist = nil, 100
+			for _, obj in ipairs(Workspace:GetDescendants()) do
+				if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj ~= character then
+					local head = obj:FindFirstChild("Head")
+					if head and (head.Position - hrp.Position).Magnitude < dist then
+						dist = (head.Position - hrp.Position).Magnitude
+						closest = head
+					end
 				end
 			end
-		end
-		if closest then
-			hr
+			if closest then
+				hr
 p.CFrame = CFrame.new(hrp.Position, Vector3.new(closest.Position.X, hrp.Position.Y, closest.Position.Z))
-		end
-		task.wait(0.1)
+			end
+		end)
 	end
 end)
 
