@@ -24,12 +24,8 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SysCoreUI"
 screenGui.ResetOnSpawn = false
 
-local playerGui = player:WaitForChild("PlayerGui", 5)
-if not playerGui then
-	warn("Không tìm thấy PlayerGui!")
-	return
-end
-screenGui.Parent = playerGui
+-- FIX: Parent screenGui trực tiếp vào player thay vì PlayerGui
+screenGui.Parent = player
 
 -- Credit label (luôn hiển thị)
 local creditLabel = Instance.new("TextLabel")
@@ -139,16 +135,14 @@ local function updateSpeedNoclip(state)
 	noclipEnabled = state
 	if humanoid then
 		humanoid.WalkSpeed = state and walkSpeedBoost or walkSpeedDefault
+		if state then
+			enableNoclip()
+		else
+			disableNoclip()
+		end
 	end
-	if state then
-		enableNoclip()
-		toggleSpeedNoclipBtn.Text = "Speed+Noclip: ON"
-		toggleSpeedNoclipBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-	else
-		disableNoclip()
-		toggleSpeedNoclipBtn.Text = "Speed+Noclip: OFF"
-		toggleSpeedNoclipBtn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-	end
+	toggleSpeedNoclipBtn.Text = "Speed+Noclip: " .. (state and "ON" or "OFF")
+	toggleSpeedNoclipBtn.BackgroundColor3 = state and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0)
 end
 
 -- Toggle GUI visibility
@@ -205,23 +199,21 @@ end)
 local function activateFakeExit()
 	mainFrame.Visible = false
 	toggleGuiButton.Visible = false
+	creditLabel.Visible = false -- Thêm dòng này để ẩn luôn credit
 	warn("Fake Quit đã bật.")
 end
 
 fakeExitBtn.MouseButton1Click:Connect(activateFakeExit)
-activateFakeExit()
+-- FIX: Xóa bỏ dòng gọi hàm activateFakeExit() ở đây để GUI không bị ẩn ngay lập tức
+-- activateFakeExit() 
 
 -- Khi nhân vật respawn
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = char:WaitForChild("Humanoid")
 	hrp = char:WaitForChild("HumanoidRootPart")
-	if speedEnabled then
-		humanoid.WalkSpeed = walkSpeedBoost
-		enableNoclip()
-	else
-		humanoid.WalkSpeed = walkSpeedDefault
-	end
+	-- Cập nhật lại speed và noclip nếu chúng đang bật
+	updateSpeedNoclip(speedEnabled)
 end)
 
 -- AntiKick
