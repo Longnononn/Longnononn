@@ -9,13 +9,13 @@ local walkSpeedDefault = 16
 local walkSpeedBoost = 28
 local noclipEnabled = false
 local speedEnabled = false
-local autoStealEnabled = false -- Khôi phục autoStealEnabled
+local autoStealEnabled = false
 
 local stealRange = 15
-local lastStealAttemptTime = 0 -- Đổi tên biến để rõ ràng hơn
-local stealActionCooldown = 2 -- Thời gian chờ giữa các lần "cướp" toàn bộ (sau khi đã giữ xong)
-local stealHoldDuration = 1.5 -- Thời gian mô phỏng "giữ nút" cho hành động cướp (tùy chỉnh)
-local stealSignalInterval = 0.05 -- Tần suất gửi tín hiệu khi đang "giữ" nút (rất nhanh)
+local lastStealAttemptTime = 0
+local stealActionCooldown = 2
+local stealHoldDuration = 1.5
+local stealSignalInterval = 0.05
 
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
@@ -25,10 +25,9 @@ local hrp = character:WaitForChild("HumanoidRootPart")
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SysCoreUI"
 screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui") -- ✅ FIXED
 
-screenGui.Parent = player
-
--- Credit label (luôn hiển thị)
+-- Credit label
 local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(0, 160, 0, 25)
 creditLabel.Position = UDim2.new(0, 10, 0, 10)
@@ -54,7 +53,6 @@ Instance.new("UICorner", toggleGuiButton)
 
 -- Main panel
 local mainFrame = Instance.new("Frame")
--- Kích thước Y của frame điều chỉnh lại cho 3 nút
 mainFrame.Size = UDim2.new(0, 160, 0, 130)
 mainFrame.Position = UDim2.new(0, 60, 0, 45)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
@@ -62,7 +60,7 @@ mainFrame.Visible = false
 mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame)
 
--- Nút Speed + Noclip
+-- Speed+Noclip button
 local toggleSpeedNoclipBtn = Instance.new("TextButton")
 toggleSpeedNoclipBtn.Size = UDim2.new(1, -20, 0, 30)
 toggleSpeedNoclipBtn.Position = UDim2.new(0, 10, 0, 10)
@@ -74,7 +72,7 @@ toggleSpeedNoclipBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleSpeedNoclipBtn.Parent = mainFrame
 Instance.new("UICorner", toggleSpeedNoclipBtn)
 
--- Nút Auto Cướp (khôi phục)
+-- Auto Steal button
 local toggleAutoStealBtn = Instance.new("TextButton")
 toggleAutoStealBtn.Size = UDim2.new(1, -20, 0, 30)
 toggleAutoStealBtn.Position = UDim2.new(0, 10, 0, 50)
@@ -86,7 +84,7 @@ toggleAutoStealBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleAutoStealBtn.Parent = mainFrame
 Instance.new("UICorner", toggleAutoStealBtn)
 
--- Nút Cướp Nhanh (khôi phục)
+-- Quick Steal button
 local quickStealBtn = Instance.new("TextButton")
 quickStealBtn.Size = UDim2.new(1, -20, 0, 30)
 quickStealBtn.Position = UDim2.new(0, 10, 0, 90)
@@ -119,7 +117,7 @@ local function disableNoclip()
 	end
 end
 
--- Tự động cập nhật speed + noclip
+-- Speed+Noclip logic
 local function updateSpeedNoclip(state)
 	speedEnabled = state
 	noclipEnabled = state
@@ -135,7 +133,7 @@ local function updateSpeedNoclip(state)
 	toggleSpeedNoclipBtn.BackgroundColor3 = state and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 0, 0)
 end
 
--- Toggle GUI visibility
+-- Toggle GUI
 toggleGuiButton.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
@@ -150,65 +148,59 @@ toggleAutoStealBtn.MouseButton1Click:Connect(function()
 	toggleAutoStealBtn.BackgroundColor3 = autoStealEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 165, 0)
 end)
 
+-- Tìm target gần nhất
 local function findNearestStealableTarget()
-	local closest, minDist = nil, stealRange + 1
-	local pos = hrp and hrp.Position or Vector3.zero
-	for _, obj in pairs(Workspace:GetDescendants()) do
+	if not hrp then return nil end
+	local closest, minDist = nil, stealRange
+	for _, obj in ipairs(Workspace:GetDescendants()) do
 		if obj:IsA("BasePart") and obj.Name == "StealableItem" then
-			local dist = (obj.Position - pos).Magnitude
+			local dist = (obj.Position - hrp.Position).Magnitude
 			if dist < minDist then
-				minDist, closest = dist, obj
+				closest, minDist = obj, dist
 			end
 		end
 	end
 	return closest
 end
 
--- Hàm thực hiện hành động cướp với mô phỏng "giữ nút"
+-- Thực hiện hành động cướp
 local function performStealAction(target)
+	if not target or not hrp then return end
 	local remote = ReplicatedStorage:FindFirstChild("StealPet", true)
 	if remote and remote:IsA("RemoteEvent") then
 		local startTime = tick()
-		print("Bắt đầu mô phỏng giữ nút cướp pet...")
 		while tick() - startTime < stealHoldDuration do
-			-- Gửi tín hiệu liên tục để mô phỏng giữ nút
 			remote:FireServer(target)
-			-- print("Đã gửi tín hiệu cướp:", target.Name) -- Bật dòng này để xem từng tín hiệu
 			task.wait(stealSignalInterval)
 		end
-		print(string.format("Đã mô phỏng giữ nút cướp pet trong %.2f giây cho: %s", stealHoldDuration, target.Name))
 	else
-		warn("Lỗi: RemoteEvent 'StealPet' không tìm thấy hoặc không phải là RemoteEvent. Không thể thực hiện cướp.")
+		warn("RemoteEvent 'StealPet' không tìm thấy.")
 	end
 end
 
--- Sự kiện click cho nút Cướp Nhanh (vẫn chỉ thực hiện một lần giữ)
+-- Nút Cướp Nhanh
 quickStealBtn.MouseButton1Click:Connect(function()
-	if tick() - lastStealAttemptTime < stealActionCooldown then return end -- Sử dụng cooldown toàn bộ
+	if tick() - lastStealAttemptTime < stealActionCooldown then return end
 	local target = findNearestStealableTarget()
 	if target then
 		performStealAction(target)
 		lastStealAttemptTime = tick()
 	else
-		print("Không tìm thấy mục tiêu 'StealableItem' trong phạm vi.")
+		print("Không tìm thấy 'StealableItem' trong phạm vi.")
 	end
 end)
 
--- Vòng lặp chính cho Auto Cướp
-spawn(function()
+-- Auto Cướp Loop
+task.spawn(function()
 	while true do
-		if autoStealEnabled then
-			if tick() - lastStealAttemptTime >= stealActionCooldown then
-				local target = findNearestStealableTarget()
-				if target then
-					performStealAction(target)
-					lastStealAttemptTime = tick() -- Cập nhật thời gian sau khi hoàn thành một chu trình cướp
-				else
-					-- print("Auto Cướp: Không tìm thấy mục tiêu 'StealableItem'.") -- Có thể bật để debug
-				end
+		if autoStealEnabled and tick() - lastStealAttemptTime >= stealActionCooldown then
+			local target = findNearestStealableTarget()
+			if target then
+				performStealAction(target)
+				lastStealAttemptTime = tick()
 			end
 		end
-		task.wait(0.1) -- Kiểm tra mỗi 0.1 giây để tìm mục tiêu hoặc chờ cooldown
+		task.wait(0.1)
 	end
 end)
 
@@ -221,7 +213,7 @@ player.CharacterAdded:Connect(function(char)
 end)
 
 -- AntiKick
-local success, mt = pcall(function() return getrawmetatable(game) end)
+local success, mt = pcall(getrawmetatable, game)
 if success and mt then
 	setreadonly(mt, false)
 	local oldNamecall = mt.__namecall
@@ -234,5 +226,5 @@ if success and mt then
 	end)
 	setreadonly(mt, true)
 else
-	warn("Không thể chặn Kick (__namecall)")
+	warn("Không thể chặn Kick (__namecall) - có thể đang bị sandbox.")
 end
