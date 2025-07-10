@@ -1,6 +1,6 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ReplicatedStorage = game:GetService("GetService")("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local UIS = game:GetService("UserInputService")
 local player = Players.LocalPlayer
@@ -24,7 +24,6 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "SysCoreUI"
 screenGui.ResetOnSpawn = false
 
--- FIX: Parent screenGui trực tiếp vào player thay vì PlayerGui
 screenGui.Parent = player
 
 -- Credit label (luôn hiển thị)
@@ -53,7 +52,7 @@ Instance.new("UICorner", toggleGuiButton)
 
 -- Main panel
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 160, 0, 170)
+mainFrame.Size = UDim2.new(0, 160, 0, 130) -- Điều chỉnh kích thước Y của frame (bớt 1 nút)
 mainFrame.Position = UDim2.new(0, 60, 0, 45)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.Visible = false
@@ -96,17 +95,7 @@ quickStealBtn.TextColor3 = Color3.new(1, 1, 1)
 quickStealBtn.Parent = mainFrame
 Instance.new("UICorner", quickStealBtn)
 
--- Nút Thoát Giả
-local fakeExitBtn = Instance.new("TextButton")
-fakeExitBtn.Size = UDim2.new(1, -20, 0, 30)
-fakeExitBtn.Position = UDim2.new(0, 10, 0, 130)
-fakeExitBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-fakeExitBtn.Text = "Thoát giả"
-fakeExitBtn.TextScaled = true
-fakeExitBtn.Font = Enum.Font.Gotham
-fakeExitBtn.TextColor3 = Color3.fromRGB(1, 1, 1)
-fakeExitBtn.Parent = mainFrame
-Instance.new("UICorner", fakeExitBtn)
+-- *** Đã xóa phần tạo nút Thoát Giả ở đây ***
 
 -- Noclip logic
 local originalCanCollide = {}
@@ -196,23 +185,13 @@ spawn(function()
 	end
 end)
 
-local function activateFakeExit()
-	mainFrame.Visible = false
-	toggleGuiButton.Visible = false
-	creditLabel.Visible = false -- Thêm dòng này để ẩn luôn credit
-	warn("Fake Quit đã bật.")
-end
-
-fakeExitBtn.MouseButton1Click:Connect(activateFakeExit)
--- FIX: Xóa bỏ dòng gọi hàm activateFakeExit() ở đây để GUI không bị ẩn ngay lập tức
--- activateFakeExit() 
+-- *** Đã xóa hàm activateFakeExit() và dòng gọi sự kiện của nó ở đây ***
 
 -- Khi nhân vật respawn
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = char:WaitForChild("Humanoid")
 	hrp = char:WaitForChild("HumanoidRootPart")
-	-- Cập nhật lại speed và noclip nếu chúng đang bật
 	updateSpeedNoclip(speedEnabled)
 end)
 
