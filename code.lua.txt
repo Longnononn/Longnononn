@@ -16,7 +16,7 @@ local quickStealEnabled = false
 
 local stealRange = 25
 local lastStealAttemptTime = 0
-local stealActionCooldown = 0.5
+local stealActionCooldown = 0.1
 
 -- GUI
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
@@ -113,7 +113,7 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
--- Auto Collect (không teleport)
+-- Chỉ cướp item Mythic, God, Secret – không cần giữ
 local function quickSteal()
 	local remote = ReplicatedStorage:FindFirstChild("StealPet", true)
 	if not remote or not remote:IsA("RemoteEvent") then return end
@@ -121,8 +121,12 @@ local function quickSteal()
 	for _, obj in pairs(Workspace:GetDescendants()) do
 		if obj.Name == "StealableItem" then
 			local part = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
+			local displayName = obj:FindFirstChild("Name") or obj:FindFirstChild("Display") or obj
 			if part and (part.Position - hrp.Position).Magnitude <= stealRange then
-				remote:FireServer(obj)
+				local nameText = (displayName.Name or displayName.Text or ""):lower()
+				if nameText:find("mythic") or nameText:find("god") or nameText:find("secret") then
+					remote:FireServer(obj)
+				end
 			end
 		end
 	end
@@ -134,11 +138,11 @@ task.spawn(function()
 			quickSteal()
 			lastStealAttemptTime = tick()
 		end
-		task.wait(0.1)
+		task.wait(0.05)
 	end
 end)
 
--- ESP bằng Box
+-- ESP
 local function createESP(part)
 	if not part:IsA("BasePart") or part:FindFirstChild("BoxESP") then return end
 	local box = Instance.new("BoxHandleAdornment")
