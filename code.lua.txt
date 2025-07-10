@@ -1,6 +1,8 @@
+-- Dead Rail Script by Long dzz
+-- Includes: Speed, Noclip, AutoPickup, AutoAim, ESP Zombie
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local player = Players.LocalPlayer
@@ -8,101 +10,90 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
 
-local walkSpeedDefault = 16
-local walkSpeedBoost = 28
-local speedEnabled = false
-local noclipEnabled = false
-local quickStealEnabled = false
-
-local stealRange = 25
-local lastStealAttemptTime = 0
-local stealActionCooldown = 0.1
-
 -- GUI
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "SysCoreUI"
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "DeadRailUI"
 screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local credit = Instance.new("TextLabel", screenGui)
-credit.Size = UDim2.new(0,160,0,25)
-credit.Position = UDim2.new(0,10,0,10)
-credit.BackgroundTransparency = 1
-credit.Text = "script by Long dzz"
-credit.TextColor3 = Color3.new(1,1,1)
-credit.Font = Enum.Font.Gotham
-credit.TextScaled = true
+-- Credit Label
+local creditLabel = Instance.new("TextLabel")
+creditLabel.Size = UDim2.new(0, 160, 0, 25)
+creditLabel.Position = UDim2.new(0, 10, 0, 10)
+creditLabel.BackgroundTransparency = 1
+creditLabel.Text = "script by Long dzz"
+creditLabel.TextColor3 = Color3.new(1, 1, 1)
+creditLabel.Font = Enum.Font.Gotham
+creditLabel.TextScaled = true
+creditLabel.Parent = screenGui
 
-local toggleGuiButton = Instance.new("TextButton", screenGui)
-toggleGuiButton.Size = UDim2.new(0,40,0,40)
-toggleGuiButton.Position = UDim2.new(0,10,0,45)
-toggleGuiButton.BackgroundColor3 = Color3.fromRGB(0,170,255)
-toggleGuiButton.Text = "+"
-toggleGuiButton.TextScaled = true
-toggleGuiButton.Font = Enum.Font.GothamBlack
-toggleGuiButton.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", toggleGuiButton)
+-- Toggle GUI
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 40, 0, 40)
+toggleBtn.Position = UDim2.new(0, 10, 0, 45)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+toggleBtn.Text = "+"
+toggleBtn.TextScaled = true
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBlack
+toggleBtn.Parent = screenGui
+Instance.new("UICorner", toggleBtn)
 
-local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0,160,0,130)
-mainFrame.Position = UDim2.new(0,60,0,45)
-mainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
+-- Main panel
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 160, 0, 90)
+mainFrame.Position = UDim2.new(0, 60, 0, 45)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.Visible = false
+mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame)
 
-toggleGuiButton.MouseButton1Click:Connect(function()
+-- Speed button
+local speedBtn = Instance.new("TextButton")
+speedBtn.Size = UDim2.new(1, -20, 0, 30)
+speedBtn.Position = UDim2.new(0, 10, 0, 10)
+speedBtn.BackgroundColor3 = Color3.fromRGB(255, 150, 0)
+speedBtn.Text = "Speed: OFF"
+speedBtn.TextScaled = true
+speedBtn.Font = Enum.Font.GothamBold
+speedBtn.TextColor3 = Color3.new(1, 1, 1)
+speedBtn.Parent = mainFrame
+Instance.new("UICorner", speedBtn)
+
+-- Noclip button
+local noclipBtn = Instance.new("TextButton")
+noclipBtn.Size = UDim2.new(1, -20, 0, 30)
+noclipBtn.Position = UDim2.new(0, 10, 0, 50)
+noclipBtn.BackgroundColor3 = Color3.fromRGB(150, 0, 255)
+noclipBtn.Text = "Noclip: OFF"
+noclipBtn.TextScaled = true
+noclipBtn.Font = Enum.Font.GothamBold
+noclipBtn.TextColor3 = Color3.new(1, 1, 1)
+noclipBtn.Parent = mainFrame
+Instance.new("UICorner", noclipBtn)
+
+-- Toggle visibility
+toggleBtn.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
 
-local speedBtn = Instance.new("TextButton", mainFrame)
-speedBtn.Size = UDim2.new(1,-20,0,30)
-speedBtn.Position = UDim2.new(0,10,0,10)
-speedBtn.BackgroundColor3 = Color3.fromRGB(255,0,0)
-speedBtn.Text = "Speed+Noclip: OFF"
-speedBtn.Font = Enum.Font.GothamBold
-speedBtn.TextScaled = true
-speedBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", speedBtn)
-
-local stealBtn = Instance.new("TextButton", mainFrame)
-stealBtn.Size = UDim2.new(1,-20,0,30)
-stealBtn.Position = UDim2.new(0,10,0,50)
-stealBtn.BackgroundColor3 = Color3.fromRGB(255,100,0)
-stealBtn.Text = "Cướp Nhanh: OFF"
-stealBtn.Font = Enum.Font.GothamBold
-stealBtn.TextScaled = true
-stealBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", stealBtn)
-
-local teleportBtn = Instance.new("TextButton", mainFrame)
-teleportBtn.Size = UDim2.new(1,-20,0,30)
-teleportBtn.Position = UDim2.new(0,10,0,90)
-teleportBtn.BackgroundColor3 = Color3.fromRGB(0,100,255)
-teleportBtn.Text = "Dịch Chuyển"
-teleportBtn.Font = Enum.Font.GothamBold
-teleportBtn.TextScaled = true
-teleportBtn.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", teleportBtn)
+-- Feature toggles
+local speedEnabled = false
+local noclipEnabled = false
 
 speedBtn.MouseButton1Click:Connect(function()
 	speedEnabled = not speedEnabled
-	noclipEnabled = speedEnabled
-	humanoid.WalkSpeed = speedEnabled and walkSpeedBoost or walkSpeedDefault
-	speedBtn.Text = "Speed+Noclip: " .. (speedEnabled and "ON" or "OFF")
-	speedBtn.BackgroundColor3 = speedEnabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(255,0,0)
+	humanoid.WalkSpeed = speedEnabled and 30 or 16
+	speedBtn.Text = "Speed: " .. (speedEnabled and "ON" or "OFF")
+	speedBtn.BackgroundColor3 = speedEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 150, 0)
 end)
 
-stealBtn.MouseButton1Click:Connect(function()
-	quickStealEnabled = not quickStealEnabled
-	stealBtn.Text = "Cướp Nhanh: " .. (quickStealEnabled and "ON" or "OFF")
-	stealBtn.BackgroundColor3 = quickStealEnabled and Color3.fromRGB(0,200,0) or Color3.fromRGB(255,100,0)
+noclipBtn.MouseButton1Click:Connect(function()
+	noclipEnabled = not noclipEnabled
+	noclipBtn.Text = "Noclip: " .. (noclipEnabled and "ON" or "OFF")
+	noclipBtn.BackgroundColor3 = noclipEnabled and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(150, 0, 255)
 end)
 
-teleportBtn.MouseButton1Click:Connect(function()
-	local dir = Workspace.CurrentCamera.CFrame.LookVector
-	hrp.CFrame = hrp.CFrame + dir * 5
-end)
-
--- Noclip
 RunService.Stepped:Connect(function()
 	if noclipEnabled and character then
 		for _, part in ipairs(character:GetDescendants()) do
@@ -113,36 +104,42 @@ RunService.Stepped:Connect(function()
 	end
 end)
 
--- Chỉ cướp item Mythic, God, Secret – không cần giữ
-local function quickSteal()
-	local remote = ReplicatedStorage:FindFirstChild("StealPet", true)
-	if not remote or not remote:IsA("RemoteEvent") then return end
-
-	for _, obj in pairs(Workspace:GetDescendants()) do
-		if obj.Name == "StealableItem" then
-			local part = obj:IsA("BasePart") and obj or obj:FindFirstChildWhichIsA("BasePart")
-			local displayName = obj:FindFirstChild("Name") or obj:FindFirstChild("Display") or obj
-			if part and (part.Position - hrp.Position).Magnitude <= stealRange then
-				local nameText = (displayName.Name or displayName.Text or ""):lower()
-				if nameText:find("mythic") or nameText:find("god") or nameText:find("secret") then
-					remote:FireServer(obj)
-				end
+-- Auto Pickup Items
+spawn(function()
+	while true do
+		for _, item in ipairs(Workspace:GetDescendants()) do
+			if item:IsA("BasePart") and item.Name:lower():find("pickup") and (item.Position - hrp.Position).Magnitude < 10 then
+				firetouchinterest(hrp, item, 0)
+				task.wait()
+				firetouchinterest(hrp, item, 1)
 			end
 		end
-	end
-end
-
-task.spawn(function()
-	while true do
-		if quickStealEnabled and tick() - lastStealAttemptTime >= stealActionCooldown then
-			quickSteal()
-			lastStealAttemptTime = tick()
-		end
-		task.wait(0.05)
+		task.wait(0.1)
 	end
 end)
 
--- ESP
+-- Auto Aim at Zombie
+spawn(function()
+	while true do
+		local closest, dist = nil, 100
+		for _, obj in ipairs(Workspace:GetDescendants()) do
+			if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj ~= character then
+				local head = obj:FindFirstChild("Head")
+				if head and (head.Position - hrp.Position).Magnitude < dist then
+					dist = (head.Position - hrp.Position).Magnitude
+					closest = head
+				end
+			end
+		end
+		if closest then
+			hr
+p.CFrame = CFrame.new(hrp.Position, Vector3.new(closest.Position.X, hrp.Position.Y, closest.Position.Z))
+		end
+		task.wait(0.1)
+	end
+end)
+
+-- ESP for Zombie
 local function createESP(part)
 	if not part:IsA("BasePart") or part:FindFirstChild("BoxESP") then return end
 	local box = Instance.new("BoxHandleAdornment")
@@ -150,56 +147,27 @@ local function createESP(part)
 	box.Adornee = part
 	box.AlwaysOnTop = true
 	box.ZIndex = 5
-	box.Size = part.Size + Vector3.new(0.1,0.1,0.1)
-	box.Color3 = Color3.fromRGB(0,255,0)
-	box.Transparency = 0.3
+	box.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
+	box.Color3 = Color3.fromRGB(255, 0, 0)
+	box.Transparency = 0.4
 	box.Parent = part
 end
 
-local function findBase(obj)
-	if obj:IsA("BasePart") then return obj end
-	for _,v in ipairs(obj:GetDescendants()) do
-		if v:IsA("BasePart") then return v end
-	end
-end
-
-local function espAll()
-	for _, o in ipairs(Workspace:GetDescendants()) do
-		if o.Name == "StealableItem" then
-			local bp = findBase(o)
-			if bp then createESP(bp) end
+for _, obj in ipairs(Workspace:GetDescendants()) do
+	if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj ~= character then
+		local head = obj:FindFirstChild("Head") or obj:FindFirstChildWhichIsA("BasePart")
+		if head then
+			createESP(head)
 		end
 	end
 end
 
 Workspace.DescendantAdded:Connect(function(obj)
-	if obj.Name == "StealableItem" then
-		task.wait(0.1)
-		local bp = findBase(obj)
-		if bp then createESP(bp) end
+	if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj ~= character then
+		task.wait(0.2)
+		local head = obj:FindFirstChild("Head") or obj:FindFirstChildWhichIsA("BasePart")
+		if head then
+			createESP(head)
+		end
 	end
-end)
-
-espAll()
-
--- Respawn
-player.CharacterAdded:Connect(function(char)
-	character = char
-	humanoid = char:WaitForChild("Humanoid")
-	hrp = char:WaitForChild("HumanoidRootPart")
-	if speedEnabled then
-		humanoid.WalkSpeed = walkSpeedBoost
-	end
-end)
-
--- AntiKick
-pcall(function()
-	local mt = getrawmetatable(game)
-	setreadonly(mt, false)
-	local old = mt.__namecall
-	mt.__namecall = newcclosure(function(self, ...)
-		if getnamecallmethod() == "Kick" then return end
-		return old(self, ...)
-	end)
-	setreadonly(mt, true)
 end)
