@@ -1,14 +1,16 @@
 -- Dead Rail Script by Long dzz
--- Includes: Speed, Noclip, AutoPickup, AutoAim, ESP Zombie
+-- Includes: Speed, Noclip, AutoPickup, AutoAim, ESP Zombie, Third Person View
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
+local camera = Workspace.CurrentCamera
 
 -- Function to update character and humanoid on respawn
 local function updateCharacter()
@@ -18,6 +20,12 @@ local function updateCharacter()
     -- Đảm bảo tốc độ được áp dụng lại nếu đang bật khi nhân vật hồi sinh
     if speedEnabled then
         humanoid.WalkSpeed = 30
+    end
+    -- Đảm bảo góc nhìn thứ 3 được áp dụng lại nếu đang bật
+    if thirdPersonEnabled then
+        camera.CameraType = Enum.CameraType.Scriptable
+    else
+        camera.CameraType = Enum.CameraType.Custom
     end
 end
 
@@ -54,7 +62,7 @@ Instance.new("UICorner", toggleBtn)
 
 -- Main panel
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 160, 0, 130) -- Increased height for more buttons if needed later
+mainFrame.Size = UDim2.new(0, 160, 0, 170) -- Increased height for new button
 mainFrame.Position = UDim2.new(0, 60, 0, 45)
 mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 mainFrame.Visible = false
@@ -97,6 +105,18 @@ autoAimBtn.TextColor3 = Color3.new(1, 1, 1)
 autoAimBtn.Parent = mainFrame
 Instance.new("UICorner", autoAimBtn)
 
+-- Third Person button
+local thirdPersonBtn = Instance.new("TextButton")
+thirdPersonBtn.Size = UDim2.new(1, -20, 0, 30)
+thirdPersonBtn.Position = UDim2.new(0, 10, 0, 130)
+thirdPersonBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 255)
+thirdPersonBtn.Text = "Third Person: OFF"
+thirdPersonBtn.TextScaled = true
+thirdPersonBtn.Font = Enum.Font.GothamBold
+thirdPersonBtn.TextColor3 = Color3.new(1, 1, 1)
+thirdPersonBtn.Parent = mainFrame
+Instance.new("UICorner", thirdPersonBtn)
+
 
 -- Toggle visibility
 toggleBtn.MouseButton1Click:Connect(function()
@@ -106,7 +126,8 @@ end)
 -- Feature toggles
 local speedEnabled = false
 local noclipEnabled = false
-local autoAimEnabled = false -- New toggle for Auto Aim
+local autoAimEnabled = false
+local thirdPersonEnabled = false
 
 speedBtn.MouseButton1Click:Connect(function()
 	speedEnabled = not speedEnabled
@@ -129,6 +150,19 @@ autoAimBtn.MouseButton1Click:Connect(function()
     autoAimBtn.BackgroundColor3 = autoAimEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
 end)
 
+thirdPersonBtn.MouseButton1Click:Connect(function()
+    thirdPersonEnabled = not thirdPersonEnabled
+    if thirdPersonEnabled then
+        camera.CameraType = Enum.CameraType.Scriptable
+        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter -- Khóa chuột vào giữa màn hình
+    else
+        camera.CameraType = Enum.MouseBehavior.Default -- Trả lại hành vi chuột mặc định
+        camera.CameraType = Enum.CameraType.Custom
+    end
+    thirdPersonBtn.Text = "Third Person: " .. (thirdPersonEnabled and "ON" or "OFF")
+    thirdPersonBtn.BackgroundColor3 = thirdPersonEnabled and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(0, 100, 255)
+end)
+
 
 RunService.Stepped:Connect(function()
 	if noclipEnabled and character then
@@ -139,6 +173,26 @@ RunService.Stepped:Connect(function()
 			end
 		end
 	end
+
+    if thirdPersonEnabled and hrp then
+        local cameraOffset = Vector3.new(0, 5, 15) -- Offset camera behind and above the player
+        local targetCFrame = hrp.CFrame * CFrame.new(cameraOffset)
+        
+        -- Raycast to prevent camera clipping through walls
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Exclude
+        rayParams.FilterDescendantsInstances = {character}
+        
+        local rayResult = Workspace:Raycast(hrp.Position, (targetCFrame.Position - hrp.Position).Unit * cameraOffset.Magnitude, rayParams)
+        
+        if rayResult then
+            -- If ray hits something, move camera closer to the player
+            camera.CFrame = CFrame.lookAt(rayResult.Position - (targetCFrame.Position - hrp.Position).Unit * 2, hrp.Position)
+        else
+            -- Otherwise, set camera to the target CFrame
+            camera.CFrame = CFrame.lookAt(targetCFrame.Position, hrp.Position)
+        end
+    end
 end)
 
 -- Auto Pickup Items
@@ -182,9 +236,8 @@ spawn(function()
 				end
 			end
 			if closest then
-                -- Xoay nhân vật một cách mượt mà trên mặt phẳng ngang
-                local lookVector = (closest.Position - hrp.Position).Unit
-                local targetCFrame = CFrame.lookAt(hrp.Position, hrp.Position + Vector3.new(lookVector.X, 0, lookVector.Z))
+                -- BÂY GIỜ SẼ NHẮM CHÍNH XÁC VÀO VỊ TRÍ ĐẦU CỦA ĐỊCH (bao gồm cả góc lên/xuống)
+                local targetCFrame = CFrame.lookAt(hrp.Position, closest.Position)
                 hrp.CFrame = targetCFrame
 			end
 		end)
