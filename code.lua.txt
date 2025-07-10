@@ -12,6 +12,13 @@ local humanoid = character:WaitForChild("Humanoid")
 local hrp = character:WaitForChild("HumanoidRootPart")
 local camera = Workspace.CurrentCamera
 
+-- Biến mới cho góc nhìn thứ ba
+local currentCameraOffset = Vector3.new(0, 5, 15) -- Offset mặc định ban đầu
+local minZoomDistance = 5  -- Khoảng cách zoom tối thiểu
+local maxZoomDistance = 30 -- Khoảng cách zoom tối đa
+local zoomSpeed = 2        -- Tốc độ zoom khi cuộn chuột
+local cameraSmoothness = 0.2 -- Độ mượt của camera (0.01 đến 1, càng nhỏ càng mượt)
+
 -- Update character when respawning
 local function updateCharacter()
 	character = player.Character or player.CharacterAdded:Wait()
@@ -26,13 +33,13 @@ local function updateCharacter()
 end
 player.CharacterAdded:Connect(updateCharacter)
 
--- GUI
+-- GUI (GIỮ NGUYÊN NHƯ SCRIPT GỐC BẠN ĐÃ CUNG CẤP)
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DeadRailUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Credit
+-- Credit (DÒNG CHỮ "script by Long dzz" GIỮ NGUYÊN)
 local creditLabel = Instance.new("TextLabel")
 creditLabel.Size = UDim2.new(0, 160, 0, 25)
 creditLabel.Position = UDim2.new(0, 10, 0, 10)
@@ -142,6 +149,8 @@ thirdPersonBtn.MouseButton1Click:Connect(function()
 	if thirdPersonEnabled then
 		camera.CameraType = Enum.CameraType.Scriptable
 		UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+		-- Đặt lại offset Z về giá trị hiện tại khi bật lại chế độ
+		currentCameraOffset = Vector3.new(currentCameraOffset.X, currentCameraOffset.Y, currentCameraOffset.Z)
 	else
 		camera.CameraType = Enum.CameraType.Custom
 		UserInputService.MouseBehavior = Enum.MouseBehavior.Default
@@ -155,7 +164,24 @@ toggleBtn.MouseButton1Click:Connect(function()
 	mainFrame.Visible = not mainFrame.Visible
 end)
 
--- RunService effects
+--- **CÁC TÍNH NĂNG MỚI ĐƯỢC CHỈNH SỬA Ở ĐÂY** ---
+
+-- Xử lý Zoom camera khi cuộn chuột
+UserInputService.InputChanged:Connect(function(input, gameProcessedEvent)
+	if thirdPersonEnabled and input.UserInputType == Enum.UserInputType.MouseWheel then
+		-- Tăng hoặc giảm khoảng cách zoom dựa trên cuộn chuột
+		local newZ = currentCameraOffset.Z - (input.Position.Z * zoomSpeed) -- input.Position.Z là 1 cho cuộn lên, -1 cho cuộn xuống
+
+		-- Giới hạn khoảng cách zoom
+		newZ = math.clamp(newZ, minZoomDistance, maxZoomDistance)
+
+		-- Cập nhật offset Z
+		currentCameraOffset = Vector3.new(currentCameraOffset.X, currentCameraOffset.Y, newZ)
+	end
+end)
+
+
+-- RunService effects (LÀM MƯỢT VÀ ZOOM CAMERA)
 RunService.Stepped:Connect(function()
 	if noclipEnabled and character then
 		for _, part in ipairs(character:GetDescendants()) do
@@ -166,21 +192,30 @@ RunService.Stepped:Connect(function()
 	end
 
 	if thirdPersonEnabled and hrp then
-		local offset = Vector3.new(0, 5, 15)
-		local targetPos = hrp.Position + hrp.CFrame.LookVector * -offset.Z + Vector3.new(0, offset.Y, 0)
+		-- Sử dụng currentCameraOffset để tính toán vị trí camera
+		local targetPos = hrp.Position + hrp.CFrame.LookVector * -currentCameraOffset.Z + Vector3.new(0, currentCameraOffset.Y, 0)
 
 		local rayParams = RaycastParams.new()
 		rayParams.FilterDescendantsInstances = { character }
 		rayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-		local result = Workspace:Raycast(hrp.Position, (targetPos - hrp.Position).Unit * offset.Magnitude, rayParams)
+		local result = Workspace:Raycast(hrp.Position, (targetPos - hrp.Position).Unit * currentCameraOffset.Magnitude, rayParams)
+		local desiredCFrame
+
 		if result then
-			camera.CFrame = CFrame.lookAt(result.Position - (targetPos - hrp.Position).Unit * 2, hrp.Position)
+			-- Nếu có vật cản, đặt camera lùi lại một chút từ điểm va chạm
+			desiredCFrame = CFrame.lookAt(result.Position - (targetPos - hrp.Position).Unit * 2, hrp.Position)
 		else
-			camera.CFrame = CFrame.lookAt(targetPos, hrp.Position)
+			-- Nếu không có vật cản, đặt camera ở vị trí tính toán
+			desiredCFrame = CFrame.lookAt(targetPos, hrp.Position)
 		end
+
+		-- Làm mượt chuyển động của camera
+		camera.CFrame = camera.CFrame:Lerp(desiredCFrame, cameraSmoothness)
 	end
 end)
+
+--- **KẾT THÚC PHẦN CHỈNH SỬA TÍNH NĂNG** ---
 
 -- Auto Pickup
 spawn(function()
