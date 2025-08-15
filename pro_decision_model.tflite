@@ -1,0 +1,36 @@
+import tensorflow as tf
+import numpy as np
+
+# Số lượng mẫu dữ liệu giả
+num_samples = 500
+
+# Dữ liệu đầu vào (10 features)
+X = np.random.rand(num_samples, 10).astype(np.float32)
+
+# Nhãn đầu ra (4 class)
+y = np.random.randint(0, 4, size=(num_samples,))
+y = tf.keras.utils.to_categorical(y, num_classes=4)
+
+# Tạo model đơn giản
+model = tf.keras.Sequential([
+    tf.keras.layers.Input(shape=(10,)),
+    tf.keras.layers.Dense(32, activation='relu'),
+    tf.keras.layers.Dense(16, activation='relu'),
+    tf.keras.layers.Dense(4, activation='softmax')
+])
+
+# Compile
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+# Train với dữ liệu giả
+model.fit(X, y, epochs=5, batch_size=16)
+
+# Xuất sang TFLite
+converter = tf.lite.TFLiteConverter.from_keras_model(model)
+tflite_model = converter.convert()
+
+# Lưu ra file
+with open("pro_decision_model.tflite", "wb") as f:
+    f.write(tflite_model)
+
+print("✅ Đã tạo file pro_decision_model.tflite với model đã train dữ liệu giả.")
