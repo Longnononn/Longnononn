@@ -1,36 +1,34 @@
 import tensorflow as tf
 import numpy as np
 
-# Số lượng mẫu dữ liệu giả
+# Input: 10 features
+inputs = tf.keras.Input(shape=(10,))
+
+# Hidden layers
+x = tf.keras.layers.Dense(32, activation='relu')(inputs)
+x = tf.keras.layers.Dense(16, activation='relu')(x)
+
+# Output: Q-values cho mỗi action (vd 10 actions)
+num_actions = 10
+outputs = tf.keras.layers.Dense(num_actions, activation=None)(x)
+
+model = tf.keras.Model(inputs=inputs, outputs=outputs)
+
+# Compile với MSE (Q-learning dùng regression)
+model.compile(optimizer='adam', loss='mse')
+
+# Dữ liệu giả
 num_samples = 500
-
-# Dữ liệu đầu vào (10 features)
 X = np.random.rand(num_samples, 10).astype(np.float32)
+y = np.random.rand(num_samples, num_actions).astype(np.float32)  # Q-values giả
 
-# Nhãn đầu ra (4 class)
-y = np.random.randint(0, 4, size=(num_samples,))
-y = tf.keras.utils.to_categorical(y, num_classes=4)
-
-# Tạo model đơn giản
-model = tf.keras.Sequential([
-    tf.keras.layers.Input(shape=(10,)),
-    tf.keras.layers.Dense(32, activation='relu'),
-    tf.keras.layers.Dense(16, activation='relu'),
-    tf.keras.layers.Dense(4, activation='softmax')
-])
-
-# Compile
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-
-# Train với dữ liệu giả
+# Train
 model.fit(X, y, epochs=5, batch_size=16)
 
-# Xuất sang TFLite
+# Xuất TFLite
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
-
-# Lưu ra file
-with open("pro_decision_model.tflite", "wb") as f:
+with open("decision_q_model.tflite", "wb") as f:
     f.write(tflite_model)
 
-print("✅ Đã tạo file pro_decision_model.tflite với model đã train dữ liệu giả.")
+print("✅ Đã tạo file decision_q_model.tflite (Q-value model RL-style).")
